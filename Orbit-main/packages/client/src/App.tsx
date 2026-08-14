@@ -570,9 +570,7 @@ export default function App() {
   };
 
   // ── Code section: hand off to StartupForge's Codex build system ──
-  // Set ANTIGRAVITY_URL to his app's address once it ships; until then the
-  // request is logged into shared agent memory and the page refreshes.
-  const ANTIGRAVITY_URL = ''; // e.g. 'http://localhost:4000/'
+  // StartupForge is reached server-to-server after its health and approval checks.
   const handleMvpAction = async (action: 'build' | 'fix') => {
     if (action === 'build') {
       try {
@@ -599,8 +597,7 @@ export default function App() {
     } catch (err) {
       console.error('MVP action log failed', err);
     }
-    if (ANTIGRAVITY_URL) window.location.href = ANTIGRAVITY_URL;
-    else window.location.reload();
+    window.location.reload();
   };
 
   // ── Context file upload → shared agent memory ──
@@ -915,7 +912,7 @@ export default function App() {
         <div className="p-4 border-t border-stone-200/80 bg-[#fff8f6]/60 text-[9px] font-mono text-stone-500 flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>GEMMA SECURE CORE: ACTIVE</span>
+            <span>LOCAL PRIVACY GATE: ACTIVE</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1631,7 +1628,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* MARKETING STUDIO: REAL NANO BANANA POSTERS + VEO AD VIDEOS */}
+                {/* MARKETING STUDIO: GPT IMAGE + SORA WITH STORYBOARD FALLBACK */}
                 {activeView === 'Marketing' && (
                   <div className="glass-panel rounded-2xl p-5 shadow-2xl flex flex-col gap-4 bg-white/70 border-stone-200/70">
                     <div className="flex items-center gap-2 border-b border-stone-200/80 pb-3">
@@ -1811,7 +1808,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* CODE SUPPORT: ASHISH'S ANTIGRAVITY INTEGRATION POINT */}
+                {/* CODE SUPPORT: STARTUPFORGE CODEX INTEGRATION */}
                 {activeView === 'Code' && (
                   <div className="glass-panel rounded-2xl p-5 shadow-sm flex flex-col gap-4 bg-white/70 border-stone-200/70">
                     <div className="flex items-center gap-2 border-b border-stone-200/80 pb-3">

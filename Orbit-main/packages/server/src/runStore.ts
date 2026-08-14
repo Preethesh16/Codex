@@ -49,3 +49,13 @@ export function decideApproval(id: string, workspaceId: string, status: 'approve
   write(approvalsPath, items);
   return approval;
 }
+
+export function updateApprovalExecution(id: string, workspaceId: string, patch: Pick<ToolApproval, 'output' | 'executionError'>): ToolApproval | undefined {
+  const items = read<ToolApproval>(approvalsPath);
+  const approval = items.find((item) => item.id === id && item.workspaceId === workspaceId);
+  if (!approval) return undefined;
+  if (patch.output !== undefined) approval.output = patch.output;
+  if (patch.executionError !== undefined) approval.executionError = patch.executionError;
+  write(approvalsPath, items);
+  return approval;
+}

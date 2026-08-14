@@ -5,7 +5,7 @@
      - Add a container with id="lang-selector" and call I18N.mountSelector() — or let
        the auto-init at the bottom handle both.
    Language choice persists in localStorage under "orbit.lang".
-   In the real product this dictionary is replaced by Gemma's on-device translation;
+   In the production product this dictionary can be replaced by a privacy-reviewed translation service;
    the data-i18n contract stays the same, so pages won't need to change. */
 
 const I18N = (() => {
@@ -41,9 +41,9 @@ const I18N = (() => {
       "agents.brand.title": "Brand & Marketing",
       "agents.brand.body":
         "Develops brand positioning and creates high-converting multilingual copy for ads and socials.",
-      "agents.build.title": "Build Agent + Gemma",
+      "agents.build.title": "Build Agent + Codex",
       "agents.build.body":
-        "Powered by Gemma Antigravity. Generates live, editable websites in plain language via on-device LLMs.",
+        "Powered by OpenAI Codex. Generates and repairs live, editable projects in a contained workspace.",
       "agents.sales.title": "Sales/GTM Agent",
       "agents.sales.body":
         "Outbound scripts, CRM management, and dynamic pricing strategies tailored to your customer's context.",
@@ -59,7 +59,7 @@ const I18N = (() => {
       "ingest.title.pre": "Not starting from zero?",
       "ingest.title.accent": "Neither is Orbit.",
       "ingest.body":
-        "Connect your legacy documents and Orbit's on-device LLM, Gemma, will securely index your entire history. Privacy isn't a feature; it's our core architecture.",
+        "Connect text or CSV documents and Orbit's deterministic local privacy gate redacts sensitive data before agent calls. Privacy isn't a feature; it's our core architecture.",
       "ingest.verified": "Financial profile extracted — 100% on-device",
 
       "loop.title": "Your business keeps improving, even when you're not building",
@@ -76,14 +76,14 @@ const I18N = (() => {
       "onboarding.question": "How are you building this?",
       "onboarding.solo.title": "Solo founder",
       "onboarding.solo.body":
-        "One Gemma vault, one profile. Everything private stays on your device; agents see only scoped, derived facts.",
+        "One local privacy vault, one profile. Everything private stays on your device; agents see only scoped, derived facts.",
       "onboarding.team.title": "With a team",
       "onboarding.team.body":
-        "A shared workspace with per-person Gemma vaults. Invite co-founders and hires with role-scoped access — personal data never syncs.",
+        "A shared workspace with per-person local vaults. Invite co-founders and hires with role-scoped access — personal data never syncs.",
       "onboarding.continue": "Continue",
       "onboarding.invite.title": "Invite your team",
       "onboarding.invite.body":
-        "Each person gets their own Gemma-protected profile: a role, a permission scope, and a private vault on their own device.",
+        "Each person gets their own locally protected profile: a role, a permission scope, and a private vault on their own device.",
       "onboarding.invite.email": "Email address",
       "onboarding.invite.role": "Role",
       "onboarding.invite.add": "Add invite",
@@ -120,9 +120,9 @@ const I18N = (() => {
       "agents.brand.title": "ब्रांड और मार्केटिंग",
       "agents.brand.body":
         "ब्रांड पोज़िशनिंग विकसित करता है और विज्ञापनों के लिए बहुभाषी, उच्च-रूपांतरण कॉपी बनाता है।",
-      "agents.build.title": "बिल्ड एजेंट + Gemma",
+      "agents.build.title": "बिल्ड एजेंट + Codex",
       "agents.build.body":
-        "Gemma Antigravity द्वारा संचालित। सरल भाषा में लाइव, संपादन-योग्य वेबसाइटें बनाता है — ऑन-डिवाइस LLM के ज़रिए।",
+        "OpenAI Codex द्वारा संचालित। सुरक्षित कार्यक्षेत्र में लाइव, संपादन-योग्य प्रोजेक्ट बनाता और सुधारता है।",
       "agents.sales.title": "सेल्स/GTM एजेंट",
       "agents.sales.body":
         "आउटबाउंड स्क्रिप्ट, CRM प्रबंधन, और आपके ग्राहक के संदर्भ के अनुरूप डायनामिक प्राइसिंग।",
@@ -138,7 +138,7 @@ const I18N = (() => {
       "ingest.title.pre": "शून्य से शुरुआत नहीं कर रहे?",
       "ingest.title.accent": "Orbit भी नहीं।",
       "ingest.body":
-        "अपने पुराने दस्तावेज़ जोड़ें — Orbit का ऑन-डिवाइस LLM, Gemma, आपका पूरा इतिहास सुरक्षित रूप से इंडेक्स करेगा। प्राइवेसी कोई फीचर नहीं; यह हमारी मूल संरचना है।",
+        "टेक्स्ट या CSV दस्तावेज़ जोड़ें — Orbit का स्थानीय प्राइवेसी गेट एजेंट कॉल से पहले संवेदनशील डेटा हटाता है। प्राइवेसी कोई फीचर नहीं; यह हमारी मूल संरचना है।",
       "ingest.verified": "वित्तीय प्रोफ़ाइल निकाली गई — 100% ऑन-डिवाइस",
 
       "loop.title": "आपका व्यवसाय बेहतर होता रहता है, तब भी जब आप कुछ नहीं बना रहे",
@@ -155,14 +155,14 @@ const I18N = (() => {
       "onboarding.question": "आप इसे कैसे बना रहे हैं?",
       "onboarding.solo.title": "अकेले फाउंडर",
       "onboarding.solo.body":
-        "एक Gemma वॉल्ट, एक प्रोफ़ाइल। सब कुछ निजी आपके डिवाइस पर रहता है; एजेंट केवल सीमित, व्युत्पन्न तथ्य देखते हैं।",
+        "एक स्थानीय प्राइवेसी वॉल्ट, एक प्रोफ़ाइल। सब कुछ निजी आपके डिवाइस पर रहता है; एजेंट केवल सीमित, व्युत्पन्न तथ्य देखते हैं।",
       "onboarding.team.title": "टीम के साथ",
       "onboarding.team.body":
-        "साझा वर्कस्पेस, प्रति-व्यक्ति Gemma वॉल्ट। सह-संस्थापकों को रोल-आधारित एक्सेस के साथ आमंत्रित करें — निजी डेटा कभी सिंक नहीं होता।",
+        "साझा वर्कस्पेस, प्रति-व्यक्ति स्थानीय वॉल्ट। सह-संस्थापकों को रोल-आधारित एक्सेस के साथ आमंत्रित करें — निजी डेटा कभी सिंक नहीं होता।",
       "onboarding.continue": "आगे बढ़ें",
       "onboarding.invite.title": "अपनी टीम को आमंत्रित करें",
       "onboarding.invite.body":
-        "हर व्यक्ति को अपनी Gemma-सुरक्षित प्रोफ़ाइल मिलती है: एक रोल, एक अनुमति-सीमा, और अपने डिवाइस पर निजी वॉल्ट।",
+        "हर व्यक्ति को अपनी स्थानीय रूप से सुरक्षित प्रोफ़ाइल मिलती है: एक रोल, एक अनुमति-सीमा, और अपने डिवाइस पर निजी वॉल्ट।",
       "onboarding.invite.email": "ईमेल पता",
       "onboarding.invite.role": "रोल",
       "onboarding.invite.add": "आमंत्रण जोड़ें",
@@ -199,9 +199,9 @@ const I18N = (() => {
       "agents.brand.title": "பிராண்ட் & மார்க்கெட்டிங்",
       "agents.brand.body":
         "பிராண்ட் நிலைப்பாட்டை உருவாக்கி, விளம்பரங்களுக்கு பன்மொழி, உயர்-மாற்று நகலை எழுதுகிறது.",
-      "agents.build.title": "பில்ட் ஏஜென்ட் + Gemma",
+      "agents.build.title": "பில்ட் ஏஜென்ட் + Codex",
       "agents.build.body":
-        "Gemma Antigravity இயக்கத்தில். எளிய மொழியில் நேரடி, திருத்தக்கூடிய இணையதளங்களை உருவாக்குகிறது — ஆன்-டிவைஸ் LLM மூலம்.",
+        "OpenAI Codex இயக்கத்தில். பாதுகாக்கப்பட்ட பணியிடத்தில் நேரடி, திருத்தக்கூடிய திட்டங்களை உருவாக்கி சரிசெய்கிறது.",
       "agents.sales.title": "விற்பனை/GTM ஏஜென்ட்",
       "agents.sales.body":
         "அவுட்பவுண்ட் ஸ்கிரிப்ட்கள், CRM நிர்வாகம், உங்கள் வாடிக்கையாளரின் சூழலுக்கேற்ற விலை உத்திகள்.",
@@ -217,7 +217,7 @@ const I18N = (() => {
       "ingest.title.pre": "பூஜ்ஜியத்திலிருந்து தொடங்கவில்லையா?",
       "ingest.title.accent": "Orbit-um இல்லை.",
       "ingest.body":
-        "உங்கள் பழைய ஆவணங்களை இணைக்கவும் — Orbit-இன் ஆன்-டிவைஸ் LLM, Gemma, உங்கள் முழு வரலாற்றையும் பாதுகாப்பாக அட்டவணைப்படுத்தும். தனியுரிமை ஒரு அம்சம் அல்ல; அது எங்கள் அடிப்படை கட்டமைப்பு.",
+        "உரை அல்லது CSV ஆவணங்களை இணைக்கவும் — Orbit-இன் உள்ளூர் தனியுரிமை வடிகட்டி ஏஜென்ட் அழைப்புகளுக்கு முன் முக்கியத் தரவை மறைக்கிறது. தனியுரிமை ஒரு அம்சம் அல்ல; அது எங்கள் அடிப்படை கட்டமைப்பு.",
       "ingest.verified": "நிதி விவரம் பிரித்தெடுக்கப்பட்டது — 100% ஆன்-டிவைஸ்",
 
       "loop.title": "நீங்கள் உருவாக்காத போதும், உங்கள் வணிகம் மேம்பட்டுக்கொண்டே இருக்கிறது",
@@ -234,14 +234,14 @@ const I18N = (() => {
       "onboarding.question": "இதை எப்படி உருவாக்குகிறீர்கள்?",
       "onboarding.solo.title": "தனி நிறுவனர்",
       "onboarding.solo.body":
-        "ஒரு Gemma பெட்டகம், ஒரு சுயவிவரம். தனிப்பட்ட அனைத்தும் உங்கள் சாதனத்திலேயே இருக்கும்; ஏஜென்ட்கள் வரையறுக்கப்பட்ட தகவல்களை மட்டுமே பார்க்கும்.",
+        "ஒரு உள்ளூர் தனியுரிமைப் பெட்டகம், ஒரு சுயவிவரம். தனிப்பட்ட அனைத்தும் உங்கள் சாதனத்திலேயே இருக்கும்; ஏஜென்ட்கள் வரையறுக்கப்பட்ட தகவல்களை மட்டுமே பார்க்கும்.",
       "onboarding.team.title": "குழுவுடன்",
       "onboarding.team.body":
-        "பகிரப்பட்ட பணியிடம், நபருக்கு ஒரு Gemma பெட்டகம். இணை நிறுவனர்களை பங்கு-அடிப்படை அணுகலுடன் அழையுங்கள் — தனிப்பட்ட தரவு ஒருபோதும் ஒத்திசைக்காது.",
+        "பகிரப்பட்ட பணியிடம், நபருக்கு ஒரு உள்ளூர் பெட்டகம். இணை நிறுவனர்களை பங்கு-அடிப்படை அணுகலுடன் அழையுங்கள் — தனிப்பட்ட தரவு ஒருபோதும் ஒத்திசைக்காது.",
       "onboarding.continue": "தொடரவும்",
       "onboarding.invite.title": "உங்கள் குழுவை அழைக்கவும்",
       "onboarding.invite.body":
-        "ஒவ்வொருவருக்கும் சொந்த Gemma-பாதுகாப்பு சுயவிவரம்: ஒரு பங்கு, அனுமதி வரம்பு, மற்றும் சொந்த சாதனத்தில் தனிப்பட்ட பெட்டகம்.",
+        "ஒவ்வொருவருக்கும் சொந்தமாகப் பாதுகாக்கப்பட்ட சுயவிவரம்: ஒரு பங்கு, அனுமதி வரம்பு, மற்றும் சொந்த சாதனத்தில் தனிப்பட்ட பெட்டகம்.",
       "onboarding.invite.email": "மின்னஞ்சல் முகவரி",
       "onboarding.invite.role": "பங்கு",
       "onboarding.invite.add": "அழைப்பு சேர்க்க",

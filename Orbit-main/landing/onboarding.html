@@ -44,11 +44,11 @@
         </div>
         <h2 class="text-headline-lg font-semibold" data-i18n="onboarding.solo.title">Solo founder</h2>
         <p class="text-body-md text-on-surface-variant" data-i18n="onboarding.solo.body">
-          One Gemma vault, one profile. Everything private stays on your device; agents see only scoped, derived facts.
+          One local privacy vault, one profile. Everything private stays on your device; agents see only scoped, derived facts.
         </p>
         <div class="flex items-center gap-2 text-label-sm text-on-surface-variant">
           <span class="material-symbols-outlined text-green-600 text-lg">lock</span>
-          Single Gemma vault · single profile
+          Single local vault · single profile
         </div>
       </button>
 
@@ -60,11 +60,11 @@
         </div>
         <h2 class="text-headline-lg font-semibold" data-i18n="onboarding.team.title">With a team</h2>
         <p class="text-body-md text-on-surface-variant" data-i18n="onboarding.team.body">
-          A shared workspace with per-person Gemma vaults. Invite co-founders and hires with role-scoped access — personal data never syncs.
+          A shared workspace with per-person local vaults. Invite co-founders and hires with role-scoped access — personal data never syncs.
         </p>
         <div class="flex items-center gap-2 text-label-sm text-on-surface-variant">
           <span class="material-symbols-outlined text-tertiary text-lg">shield_person</span>
-          Team Gemma vault · multi-profile
+          Team local vault · multi-profile
         </div>
       </button>
     </div>
@@ -75,7 +75,7 @@
     <div class="text-center space-y-4">
       <h2 class="text-headline-lg font-bold" data-i18n="onboarding.invite.title">Invite your team</h2>
       <p class="text-body-md text-on-surface-variant max-w-2xl mx-auto" data-i18n="onboarding.invite.body">
-        Each person gets their own Gemma-protected profile: a role, a permission scope, and a private vault on their own device.
+        Each person gets their own locally protected profile: a role, a permission scope, and a private vault on their own device.
       </p>
     </div>
 
@@ -154,7 +154,7 @@
     </div>
     <h2 class="text-headline-lg font-bold">Workspace created</h2>
     <p class="text-body-md text-on-surface-variant max-w-md mx-auto">
-      Your Gemma vault is initializing on this device. Next: tell Orbit your idea — in any language.
+      Your local privacy vault is initializing on this device. Next: tell Orbit your idea — in any language.
     </p>
     <a href="workflow.html" class="inline-block bg-primary text-on-primary px-8 py-4 rounded-full font-bold text-body-md shadow-xl shadow-primary/20" data-i18n="onboarding.continue">Continue</a>
   </section>
@@ -204,7 +204,7 @@
             <span class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-primary font-bold text-sm">${inv.email[0].toUpperCase()}</span>
             <div>
               <p class="text-body-md font-medium">${inv.email}</p>
-              <p class="text-label-sm text-on-surface-variant">${inv.role} · own Gemma vault, role-scoped access</p>
+              <p class="text-label-sm text-on-surface-variant">${inv.role} · own local vault, role-scoped access</p>
             </div>
           </div>
           <button onclick="removeInvite(${i})" class="text-on-surface-variant hover:text-error transition-colors">

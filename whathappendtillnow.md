@@ -181,6 +181,41 @@ verified commits only to `codex/orbit-openai-migration`.
   replay.
 - Commit and push: pending additional completion-audit batches.
 
+### Change batch — public migration copy and full package build evidence
+
+- Removed stale public claims that Orbit still uses Gemma, Antigravity, Nano
+  Banana, or Veo from the landing pages, founder workspace, and active client.
+- Replaced them with accurate Codex build, local deterministic privacy-gate,
+  GPT Image, Sora, diff, and approval language.
+- Retained only the documented `gemma:*` and `antigravity:*` compatibility
+  events/export in StartupForge while clients transition to canonical events.
+
+#### Files changed
+
+- `Orbit-main/landing/assets/i18n.js`
+- `Orbit-main/landing/demo.html`
+- `Orbit-main/landing/index.html`
+- `Orbit-main/landing/onboarding.html`
+- `Orbit-main/landing/workflow.html`
+- `Orbit-main/packages/client/src/App.tsx`
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/workspace/src/App.tsx`
+
+#### Verification and status
+
+- Google-model dependency/environment scan: no active Gemini, Google GenAI,
+  Nano Banana, Veo, Gemma/Ollama inference, or Google model API key remains.
+- Full Orbit monorepo build: passed; Orbit server tests: 9 passed.
+- Standalone Orbit workspace build: passed.
+- StartupForge server build and 10 tests: passed; client build: passed.
+- MultiVideo 4 tests and all backend route/service syntax checks: passed.
+- The first aggregate Orbit verification command reported that the root has no
+  `test` script after its build passed; the server workspace test command was
+  then run directly and passed.
+- Live OpenAI/Sora/OAuth checks remain credential-blocked; no external call,
+  deployment, repository write, or publication was made.
+- Commit and push: pending milestone commit.
+
 ## 2026-08-14 18:33:59 IST — Start Orbit OpenAI migration
 
 ### Request summary
@@ -449,3 +484,135 @@ changing `main` or causing external publishing without approval.
 - No OpenAI, OAuth, deployment, GitHub, or publishing request was made.
 - Implementation/hardening milestone committed as `b875a86` and pushed
   successfully to `codex/orbit-openai-migration`.
+
+### Completion-audit milestone push
+
+- Safety, durability, asynchronous media, usage/retry, publishing proof, and
+  encrypted-action changes through the preceding batches were committed as
+  `acf343f` and pushed successfully to `codex/orbit-openai-migration`.
+
+### Change batch — approved Orbit to StartupForge execution bridge
+
+- Extended `ToolApproval` with sanitized input, execution output, and execution
+  error fields.
+- An approved `startupforge.build` action now maps the current `StartupContext`
+  to a privacy-minimized StartupForge profile, synchronizes it over HTTP, and
+  submits an actual asynchronous build job. Rejection still performs no write.
+- Added bearer authentication to all StartupForge HTTP build/status/event/
+  rollback endpoints with a shared service token kept in ignored environment
+  files.
+- Stored the resulting StartupForge job/build IDs back on the approval record.
+- Added a mapping test proving founder identity and precise location are omitted
+  from the cross-service handoff.
+
+#### Files changed
+
+- `Orbit-main/packages/core/src/types.ts`
+- `Orbit-main/packages/server/src/runStore.ts`
+- `Orbit-main/packages/server/src/startupForgeBridge.ts`
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/packages/server/.env.example`
+- `Orbit-main/packages/server/test/startupForgeBridge.test.mjs`
+- `startupforge/server/src/index.ts`
+- `startupforge/server/.env.example`
+
+#### Verification and status
+
+- A server-only compile initially saw stale generated `orbit-core` declarations;
+  the authoritative root build compiled core first and then passed server/client.
+- Full Orbit monorepo build: passed.
+- Orbit server tests: 7 passed.
+- StartupForge server build and 6 tests: passed.
+- No cross-service build was submitted because no service/API credentials were
+  supplied and no approval was exercised.
+- Commit and push: pending further completion-audit work.
+
+### Change batch — generated-MVP build smoke coverage
+
+- Exposed StartupForge's production build verifier for a contained test seam.
+- Added a generated-project smoke case that creates an isolated MVP fixture,
+  executes its `npm run build` through the same verifier used after Codex, checks
+  the output marker, and removes the fixture.
+
+#### Files changed
+
+- `startupforge/server/src/services/antigravityService.ts`
+- `startupforge/server/test/codexBuildSafety.test.js`
+
+#### Verification and status
+
+- StartupForge server build: passed.
+- StartupForge tests: 10 passed, including the generated-MVP build smoke.
+- Commit and push: pending further completion-audit work.
+
+### Change batch — prompt-injection isolation and broader privacy gate
+
+- Wrapped uploaded document text in explicit untrusted-data boundaries before
+  OpenAI summarization and prefixed every StartupForge business-context line as
+  data before Planner/implementation prompts.
+- Added instructions to ignore role overrides, secret requests, workspace
+  escapes, and other directives embedded in business data.
+- Expanded deterministic redaction for bank codes, labeled account numbers,
+  JWT-like tokens, and AWS-style access identifiers in addition to existing
+  contacts, identity IDs, card-like values, tax IDs, and API keys.
+- Added tests for prompt-injection isolation and the expanded identifier set.
+
+#### Files changed
+
+- `Orbit-main/packages/server/src/openaiRuntime.ts`
+- `Orbit-main/packages/server/src/creative.ts`
+- `Orbit-main/packages/server/test/openaiRuntime.test.mjs`
+- `startupforge/server/src/services/contextService.ts`
+- `startupforge/server/src/services/antigravityService.ts`
+- `startupforge/server/test/codexBuildSafety.test.js`
+
+#### Verification and status
+
+- Full Orbit monorepo build and 9 server tests: passed.
+- StartupForge server build and 9 tests: passed.
+- Commit and push: pending further completion-audit work.
+
+### Change batch — Codex resumption, diff, and event compatibility evidence
+
+- Exposed narrow test seams for thread metadata, fake Codex clients, snapshot
+  diffs, and canonical/legacy event emission without weakening production
+  sandboxing.
+- Added tests proving a second build opens the saved Codex thread via
+  `resumeThread`, snapshot comparison contains the actual before/after diff, and
+  canonical completion emits the temporary Antigravity compatibility alias.
+
+#### Files changed
+
+- `startupforge/server/src/services/antigravityService.ts`
+- `startupforge/server/test/codexBuildSafety.test.js`
+
+#### Verification and status
+
+- StartupForge server build: passed.
+- StartupForge tests: 8 passed, including resumption, diff, rollback, durable
+  events, approval, encryption, path safety, and compatibility aliases.
+- Commit and push: pending further completion-audit work.
+
+### Change batch — executable Manager and graph integration evidence
+
+- Added a final structured Manager audit that is forced to invoke at least one
+  configured specialist-as-tool before producing its executive synthesis.
+- Kept deterministic outer orchestration for guaranteed dependency order while
+  using the Manager tool layer for cross-specialist reconciliation.
+- Extracted the graph scheduler behind an injected stage runner and added an
+  integration-style test proving Research completes first, Finance/Legal/Brand
+  overlap, Conflict waits for all three, and Marketing/Build/GTM overlap only
+  after Conflict.
+- Verified the Manager exposes all nine required specialist tools.
+
+#### Files changed
+
+- `Orbit-main/packages/server/src/openaiRuntime.ts`
+- `Orbit-main/packages/server/test/openaiRuntime.test.mjs`
+
+#### Verification and status
+
+- Full Orbit monorepo build: passed.
+- Orbit server tests: 8 passed, including graph ordering and parallelism.
+- No live agent run was made because credentials remain absent.
+- Commit and push: pending further completion-audit work.

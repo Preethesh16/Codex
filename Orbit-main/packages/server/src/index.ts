@@ -8,7 +8,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { registerCreative } from './creative.js';
 import { applyValidatedContextPatch, normalizeOpenAIError, refineFinancePlan, runDepartmentAgent, runOrbitWorkflow, type OrbitDepartment } from './openaiRuntime.js';
-import { createApproval, decideApproval, listAgentRuns, listApprovals, saveAgentRun } from './runStore.js';
+import { createApproval, decideApproval, listAgentRuns, listApprovals, saveAgentRun, updateApprovalExecution } from './runStore.js';
+import { startupForgeProfileFromContext } from './startupForgeBridge.js';
 
 const __dirnameServer = dirname(fileURLToPath(import.meta.url));
 
@@ -37,7 +38,7 @@ app.get('/api/approvals', (req, res) => {
   res.json(listApprovals(String(req.query.workspaceId || 'default-workspace')));
 });
 
-app.post('/api/approvals/:id/:decision', (req, res) => {
+app.post('/api/approvals/:id/:decision', async (req, res) => {
   const expected = process.env.ORBIT_APPROVAL_TOKEN;
   if (!expected) return res.status(503).json({ error: 'Approval authorization is not configured.' });
   if (req.headers.authorization !== `Bearer ${expected}`) return res.status(401).json({ error: 'Invalid approval authorization.' });
@@ -46,7 +47,33 @@ app.post('/api/approvals/:id/:decision', (req, res) => {
   const workspaceId = String(req.body.workspaceId || 'default-workspace');
   const approval = decideApproval(req.params.id, workspaceId, decision === 'approve' ? 'approved' : 'rejected', String(req.body.decidedBy || 'founder'));
   if (!approval) return res.status(404).json({ error: 'pending approval not found' });
-  res.json(approval);
+  if (approval.status !== 'approved' || approval.toolName !== 'startupforge.build') return res.json(approval);
+  try {
+    const context = getContext(workspaceId);
+    const baseUrl = process.env.STARTUPFORGE_URL || 'http://127.0.0.1:3001';
+    const serviceToken = process.env.STARTUPFORGE_SERVICE_TOKEN;
+    if (!serviceToken) throw new Error('STARTUPFORGE_SERVICE_TOKEN is not configured');
+    const profileResponse = await fetch(`${baseUrl}/api/business`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify(startupForgeProfileFromContext(context)),
+    });
+    if (!profileResponse.ok) throw new Error(`StartupForge profile sync returned HTTP ${profileResponse.status}`);
+    const profile = await profileResponse.json() as { id?: number };
+    if (!profile.id) throw new Error('StartupForge profile sync returned no business ID');
+    const buildResponse = await fetch(`${baseUrl}/api/builds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceToken}` },
+      signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify({ businessId: profile.id, command: (approval.input as any)?.command || context.founderProfile.vision }),
+    });
+    const build = await buildResponse.json();
+    if (!buildResponse.ok) throw new Error(`StartupForge build submission returned HTTP ${buildResponse.status}`);
+    return res.status(202).json(updateApprovalExecution(approval.id, workspaceId, { output: build, executionError: undefined }));
+  } catch (error) {
+    const normalized = normalizeOpenAIError(error, crypto.randomUUID());
+    updateApprovalExecution(approval.id, workspaceId, { output: undefined, executionError: normalized });
+    return res.status(502).json({ approvalId: approval.id, status: approval.status, executionError: normalized });
+  }
 });
 
 // Helper: Get active context
@@ -226,7 +253,7 @@ app.post('/api/conflicts/resolve', (req, res) => {
 });
 
 // -----------------------------------------------------------------
-// GEMMA PRIVATE VAULT ENDPOINTS
+// DETERMINISTIC LOCAL PRIVACY VAULT ENDPOINTS
 // -----------------------------------------------------------------
 app.get('/api/vault', (req, res) => {
   const rows = db.prepare("SELECT * FROM local_secure_vault ORDER BY created_at DESC").all();
@@ -459,7 +486,12 @@ async function runAgentWorkflow(workspaceId: string, objective: string): Promise
     }
     const buildRun = listAgentRuns(workspaceId).filter((run) => run.agent === 'code').at(-1);
     if (buildRun) {
-      const approval = createApproval({ workspaceId, runId: buildRun.id, toolName: 'startupforge.build', reason: 'Allow StartupForge/Codex to write the generated MVP files.' });
+      const buildOutput = buildRun.output as { summary?: string } | undefined;
+      const approval = createApproval({
+        workspaceId, runId: buildRun.id, toolName: 'startupforge.build',
+        reason: 'Allow StartupForge/Codex to write the generated MVP files.',
+        input: { command: buildOutput?.summary || objective },
+      });
       buildRun.status = 'awaiting_approval';
       buildRun.approvalIds = [approval.id];
       saveAgentRun(buildRun);

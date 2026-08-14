@@ -27,11 +27,11 @@ const DICTIONARY: Record<Language, Record<string, string>> = {
     "onboarding.welcome": "Welcome to Orbit",
     "onboarding.question": "How are you building this?",
     "onboarding.solo.title": "Solo founder",
-    "onboarding.solo.body": "One Gemma vault, one profile. Everything private stays on your device; agents see only scoped, derived facts.",
+    "onboarding.solo.body": "One local privacy vault, one profile. Everything private stays on your device; agents see only scoped, derived facts.",
     "onboarding.team.title": "With a team",
-    "onboarding.team.body": "A shared workspace with per-person Gemma vaults. Invite co-founders and hires with role-scoped access — personal data never syncs.",
+    "onboarding.team.body": "A shared workspace with per-person local vaults. Invite co-founders and hires with role-scoped access — personal data never syncs.",
     "onboarding.invite.title": "Invite your team",
-    "onboarding.invite.body": "Each person gets their own Gemma-protected profile: a role, a permission scope, and a private vault on their own device.",
+    "onboarding.invite.body": "Each person gets their own locally protected profile: a role, a permission scope, and a private vault on their own device.",
     "onboarding.invite.email": "Email address",
     "onboarding.invite.role": "Role",
     "onboarding.invite.add": "Add invite",
@@ -62,11 +62,11 @@ const DICTIONARY: Record<Language, Record<string, string>> = {
     "onboarding.welcome": "Orbit-க்கு வரவேற்கிறோம்",
     "onboarding.question": "இதை எப்படி உருவாக்குகிறீர்கள்?",
     "onboarding.solo.title": "தனி நிறுவனர்",
-    "onboarding.solo.body": "ஒரு Gemma பெட்டகம், ஒரு சுயவிவரம். தனிப்பட்ட அனைத்தும் உங்கள் சாதனத்திலேயே இருக்கும்; ஏஜென்ட்கள் வரையறுக்கப்பட்ட தகவல்களை மட்டுமே பார்க்கும்.",
+    "onboarding.solo.body": "ஒரு உள்ளூர் தனியுரிமைப் பெட்டகம், ஒரு சுயவிவரம். தனிப்பட்ட அனைத்தும் உங்கள் சாதனத்திலேயே இருக்கும்; ஏஜென்ட்கள் வரையறுக்கப்பட்ட தகவல்களை மட்டுமே பார்க்கும்.",
     "onboarding.team.title": "குழுவுடன்",
-    "onboarding.team.body": "பகிரப்பட்ட பணியிடம், நபருக்கு ஒரு Gemma பெட்டகம். இணை நிறுவனர்களை பங்கு-அடிப்படை அணுகலுடன் அழையுங்கள் — தனிப்பட்ட தரவு ஒருபோதும் ஒத்திசைக்காது.",
+    "onboarding.team.body": "பகிரப்பட்ட பணியிடம், நபருக்கு ஒரு உள்ளூர் பெட்டகம். இணை நிறுவனர்களை பங்கு-அடிப்படை அணுகலுடன் அழையுங்கள் — தனிப்பட்ட தரவு ஒருபோதும் ஒத்திசைக்காது.",
     "onboarding.invite.title": "உங்கள் குழுவை அழைக்கவும்",
-    "onboarding.invite.body": "ஒவ்வொருவருக்கும் சொந்த Gemma-பாதுகாப்பு சுயவிவரம்: ஒரு பங்கு, அனுமதி வரம்பு, மற்றும் சொந்த சாதனத்தில் தனிப்பட்ட பெட்டகம்.",
+    "onboarding.invite.body": "ஒவ்வொருவருக்கும் சொந்தமாகப் பாதுகாக்கப்பட்ட சுயவிவரம்: ஒரு பங்கு, அனுமதி வரம்பு, மற்றும் சொந்த சாதனத்தில் தனிப்பட்ட பெட்டகம்.",
     "onboarding.invite.email": "மின்னஞ்சல் முகவரி",
     "onboarding.invite.role": "பங்கு",
     "onboarding.invite.add": "அழைப்பு சேர்க்க",
@@ -340,7 +340,7 @@ export default function App() {
                       <div className="flex justify-between items-center pb-4 border-b border-white/5">
                         <div>
                           <h3 className="text-white font-bold text-sm">Orbit AI Loop</h3>
-                          <p className="text-white/40 text-[9px] font-mono">Status: Connected to local private Gemma Vault</p>
+                          <p className="text-white/40 text-[9px] font-mono">Status: Connected to local privacy vault</p>
                         </div>
                         <span className="text-[10px] bg-primary/20 text-primary border border-primary/30 px-3 py-1 rounded-full font-mono">Active</span>
                       </div>
@@ -349,7 +349,7 @@ export default function App() {
                           "Your idea has been parsed against category benchmarks. TAM calculated at ₹4,200 Cr, competitor pricing scans locked. Click completing research to unlock financial budget planners."
                         </p>
                       </div>
-                      <div className="text-[10px] text-white/35 font-mono">Gemma vault: Encrypted · private · on-device</div>
+                      <div className="text-[10px] text-white/35 font-mono">Local vault: Encrypted · private · on-device</div>
                     </div>
                   </div>
                 </div>

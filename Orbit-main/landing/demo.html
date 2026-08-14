@@ -80,7 +80,7 @@
         </label>
       </div>
       <button type="submit" class="w-full bg-primary text-on-primary px-8 py-4 rounded-full font-bold text-body-md shadow-xl shadow-primary/20 hover:brightness-110 transition-all">
-        Initialize my Gemma vault &amp; run the workflow
+        Initialize my local vault &amp; run the workflow
       </button>
     </form>
   </section>
@@ -103,7 +103,7 @@
 
     <div class="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
       <span class="material-symbols-outlined text-green-600">lock</span>
-      <p class="text-sm text-green-800"><strong>Gemma vault initialized on this device.</strong> Your email and financials below never leave it — agents only see derived facts.</p>
+      <p class="text-sm text-green-800"><strong>Local privacy vault initialized on this device.</strong> Your email and financials below never leave it — agents only see redacted, derived facts.</p>
     </div>
 
     <!-- Steps stream in here -->
@@ -166,8 +166,8 @@ function buildSteps(d) {
 
   return [
     { icon: "door_open", agent: "Workspace", title: "Step 0 — Onboarding", status: "done",
-      body: `${d.mode === "solo" ? "Solo" : "Team"} mode selected. Gemma vault created on ${d.name}'s device. Profile: Founder (full access).` },
-    { icon: "upload_file", agent: "Gemma · on-device", title: "Step 0.5 — Document ingestion", status: "done",
+      body: `${d.mode === "solo" ? "Solo" : "Team"} mode selected. Local vault created on ${d.name}'s device. Profile: Founder (full access).` },
+    { icon: "upload_file", agent: "Local privacy gate", title: "Step 0.5 — Document ingestion", status: "done",
       body: d.cost
         ? `Parsed your uploaded invoices locally. Extracted (stays local): unit cost ₹${d.cost}. Synced to agents (derived only): "gross margin potential ~${margin}% at ₹${price}". Identity documents never leave this device.`
         : `No documents uploaded — agents will work from conversation and public benchmarks. You can ingest ITRs/GST/bank statements anytime to ground the numbers.` },
@@ -185,17 +185,17 @@ function buildSteps(d) {
       body: clothing
         ? `Brand Agent wanted "100% organic cotton" on the homepage; Legal vetoed — no GOTS certification on file. Resolved to "heavyweight 240 GSM combed cotton": true, and converts better in this segment. Fully logged.`
         : `Brand Agent's strongest claim outran what Legal has cleared for ${d.brand}. Arbitrated in real time; softened claim shipped, original queued behind the missing certification. Fully logged.` },
-    { icon: "rocket_launch", agent: "Build Agent + Antigravity", title: "Step 5 — First build", status: "done",
-      body: `${site} is live: ${clothing ? "drop countdown, size chart, " : ""}EN/KN/TA toggle, Razorpay checkout, COD enabled. This is a living working tree — say "make the hero warmer" in any language and Antigravity edits and redeploys.` },
+    { icon: "rocket_launch", agent: "Build Agent + Codex", title: "Step 5 — First build", status: "done",
+      body: `${site} is ready for review: ${clothing ? "drop countdown, size chart, " : ""}EN/KN/TA toggle, Razorpay checkout, COD enabled. This is a living working tree — ask for an edit and Codex returns a diff; deployment still requires approval.` },
     { icon: "trending_up", agent: "Sales/GTM Agent", title: "Step 6 — Go-to-market", status: "done",
       body: `Price locked at ₹${price}${d.cost ? ` (your real ₹${d.cost} unit cost → ${margin}% margin, checked against vault data)` : " (category benchmark)"}. Launch kit drafted: 40 outreach DMs, Reels calendar, WhatsApp broadcast template.`, approval: `Approve launch kit & outreach for ${d.brand}` },
     { icon: "support_agent", agent: "Support Agent", title: "Step 7 — Live support", status: "active",
       body: `Standing by on the live site. Simulated first query (Kannada): "XL size available idya?" → answered in Kannada from the live catalog in 40 seconds, zero founder involvement.` },
-    { icon: "all_inclusive", agent: "Antigravity · ongoing", title: "Step 8 — Continuous improvement", status: "active",
+    { icon: "all_inclusive", agent: "Codex · ongoing", title: "Step 8 — Continuous improvement", status: "active",
       body: `Watching conversions. Detected: 71% cart abandonment at the shipping-cost step. Proposed edit: "Free shipping over ₹999" — Legal cleared it. One tap deploys; instant rollback from the local version vault.`, approval: `Deploy "Free shipping over ₹999" edit` },
     { icon: "group_add", agent: "Workspace", title: "Step 9 — Team growth", status: d.mode === "team" ? "active" : "pending",
       body: d.mode === "team"
-        ? `Invite flow open — each member gets their own Gemma vault and role-scoped access to ${d.brand}'s shared context.`
+        ? `Invite flow open — each member gets their own local vault and role-scoped access to ${d.brand}'s shared context.`
         : `Not yet — the moment your first hire joins, they get their own vault and role-scoped view. Your financials never leak to them.` },
   ];
 }

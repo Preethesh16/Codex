@@ -171,6 +171,9 @@ export interface ToolApproval {
   runId: string;
   toolName: string;
   reason: string;
+  input?: unknown;
+  output?: unknown;
+  executionError?: { code: string; message: string; retryable: boolean };
   status: 'pending' | 'approved' | 'rejected' | 'expired';
   requestedAt: string;
   decidedAt?: string;

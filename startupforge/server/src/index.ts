@@ -59,6 +59,14 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'startupforge', builder: 'codex-sdk' });
 });
 
+const requireServiceToken: express.RequestHandler = (req, res, next) => {
+  const expected = process.env.STARTUPFORGE_SERVICE_TOKEN;
+  if (!expected) return res.status(503).json({ error: 'Service authentication is not configured.' });
+  if (req.headers.authorization !== `Bearer ${expected}`) return res.status(401).json({ error: 'Invalid service authorization.' });
+  next();
+};
+app.use('/api/builds', requireServiceToken);
+
 const buildEventSubscribers = new Map<string, Set<express.Response>>();
 
 function emitContext(sink: EventSink, phase: 'start' | 'progress' | 'complete', payload: Record<string, unknown>): void {

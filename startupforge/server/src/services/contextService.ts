@@ -5,7 +5,10 @@ const redact = (value: unknown): string => String(value ?? '')
   .replace(/(?<!\d)(?:\+?91[-\s]?)?[6-9]\d{9}(?!\d)/g, '[REDACTED_PHONE]')
   .replace(/\b[A-Z]{5}\d{4}[A-Z]\b/gi, '[REDACTED_TAX_ID]')
   .replace(/\b\d{4}[ -]?\d{4}[ -]?\d{4}\b/g, '[REDACTED_ID]')
-  .replace(/\b(?:sk|sess)-[A-Za-z0-9_-]{16,}\b/g, '[REDACTED_API_KEY]');
+  .replace(/\b(?:sk|sess)-[A-Za-z0-9_-]{16,}\b/g, '[REDACTED_API_KEY]')
+  .replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/gi, '[REDACTED_BANK_CODE]')
+  .replace(/\b(?:account|a\/c)\s*(?:number|no\.?|#)?\s*[:=-]?\s*\d{9,18}\b/gi, '[REDACTED_FINANCIAL_ID]')
+  .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[REDACTED_TOKEN]');
 
 function jsonList(value: unknown): string {
   try { return (JSON.parse(String(value || '[]')) as unknown[]).map(redact).join(', '); } catch { return ''; }
