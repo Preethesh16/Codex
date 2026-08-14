@@ -19,8 +19,10 @@ that is locally verifiable, rerun full evidence, document, and publish only to
   `codex` remote branch.
 - Live provider and OAuth checks still have no supplied credentials, but the
   source-side hardening audit can continue independently.
-- Files changed so far: this audit entry only.
-- Tests, commit, and push: pending audit findings.
+- Completed locally verifiable source hardening across Orbit, StartupForge, and
+  MultiVideo; details and evidence are recorded in the batches below.
+- Implementation milestone `eb923f4` was pushed only to
+  `codex/orbit-openai-migration`.
 
 ### Change batch — OAuth, session, upload, and external-action hardening
 
@@ -52,7 +54,8 @@ that is locally verifiable, rerun full evidence, document, and publish only to
 - All backend JavaScript syntax checks: passed.
 - Production dependency audit: zero known vulnerabilities.
 - No OAuth or publishing call was made.
-- Commit and push: pending completion of this milestone.
+- Included in implementation milestone `eb923f4`; pushed to
+  `codex/orbit-openai-migration`.
 
 ### Change batch — atomic private Orbit state and HTTP boundaries
 
@@ -81,7 +84,8 @@ that is locally verifiable, rerun full evidence, document, and publish only to
 
 - Full Orbit monorepo build: passed.
 - Orbit server tests: 15 passed.
-- Commit and push: pending completion of this milestone.
+- Included in implementation milestone `eb923f4`; pushed to
+  `codex/orbit-openai-migration`.
 
 ### Change batch — GitHub command safety and generated-build sandboxing
 
@@ -125,7 +129,8 @@ that is locally verifiable, rerun full evidence, document, and publish only to
 - One new Git-policy test initially failed because Git normalized
   `insteadOf` to lowercase in configuration output. The check was changed to
   enumerate local keys and compare them case-insensitively; the rerun passed.
-- Commit and push: pending completion of this milestone.
+- Included in implementation milestone `eb923f4`; pushed to
+  `codex/orbit-openai-migration`.
 
 ### Change batch — operator documentation alignment
 
@@ -165,7 +170,9 @@ that is locally verifiable, rerun full evidence, document, and publish only to
   uploaded images, so the dependency was not force-changed.
 - Live OpenAI, Sora, OAuth, YouTube, GitHub publishing, and deployment checks
   remain credential/approval gated and were not invoked.
-- Commit and push: pending completion of this milestone.
+- Included in implementation milestone `eb923f4`; pushed to
+  `codex/orbit-openai-migration`. This audit closure will be included in a
+  documentation-only follow-up commit on the same branch.
 
 ## 2026-08-14 19:14:11 IST — Continue locally verifiable completion work
 
