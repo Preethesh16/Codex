@@ -239,7 +239,8 @@ verified commits only to `codex/orbit-openai-migration`.
   documentation-only.
 - Implementation milestone `e3f6669` was committed and pushed successfully to
   `codex/orbit-openai-migration`.
-- Documentation commit and push: pending.
+- Operator documentation was committed as `6080855` and pushed successfully to
+  `codex/orbit-openai-migration`.
 
 ## 2026-08-14 18:33:59 IST — Start Orbit OpenAI migration
 
