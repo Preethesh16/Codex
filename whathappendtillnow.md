@@ -20,7 +20,12 @@ repository's `main` branch.
 - Confirmed the unrelated `origin/main` remains at `5cacae0` and is out of scope.
 - Files changed: `whathappendtillnow.md` only.
 - Tests: no implementation changed; prior verified suite remains authoritative.
-- Commit and push: pending.
+- Authorization/delivery entry committed as `99844e0` and pushed to
+  `codex/orbit-openai-migration`.
+- Created `codex/main` from the same verified history using a normal push. No
+  existing branch was overwritten and no force push was used.
+- This status closure will be included in an audit-only follow-up commit and
+  synchronized to both Codex branches.
 
 ## 2026-08-14 19:26:24 IST — Continue production-hardening audit
 
