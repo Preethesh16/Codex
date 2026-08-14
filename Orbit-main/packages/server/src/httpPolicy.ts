@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 
-export function allowedOrigins(configured = process.env.ORBIT_CLIENT_URL || 'http://localhost:5173'): Set<string> {
+export function allowedOrigins(configured = process.env.ORBIT_CLIENT_URL || 'http://localhost:3000'): Set<string> {
   return new Set(configured.split(',').map((value) => value.trim()).filter(Boolean));
 }
 

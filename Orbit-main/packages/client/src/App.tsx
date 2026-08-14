@@ -106,6 +106,10 @@ export default function App() {
   const [deckResult, setDeckResult] = useState<any>(null);
   const [isGeneratingDeck, setIsGeneratingDeck] = useState(false);
 
+  // StartupForge handoff status
+  const [mvpStatus, setMvpStatus] = useState('');
+  const [isLaunchingMvp, setIsLaunchingMvp] = useState(false);
+
   // Context upload
   const [uploadStatus, setUploadStatus] = useState('');
   const [instaUsername, setInstaUsername] = useState('');
@@ -571,15 +575,31 @@ export default function App() {
 
   // ── Code section: hand off to StartupForge's Codex build system ──
   // StartupForge is reached server-to-server after its health and approval checks.
+  // The build itself is submitted once the Manager Agent's startupforge.build
+  // tool call is approved (see the Approvals panel); this button only confirms
+  // StartupForge is reachable and opens its workspace so the founder can work there.
+  const STARTUPFORGE_CLIENT_URL = 'http://localhost:5173';
   const handleMvpAction = async (action: 'build' | 'fix') => {
     if (action === 'build') {
+      setIsLaunchingMvp(true);
+      setMvpStatus('Connecting to StartupForge...');
       try {
-        await fetch('/api/launch-startupforge', {
+        const res = await fetch('/api/launch-startupforge', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setMvpStatus('✓ StartupForge is running — opening its workspace...');
+          window.open(STARTUPFORGE_CLIENT_URL, '_blank', 'noopener,noreferrer');
+        } else {
+          setMvpStatus(`✗ ${data.error || 'StartupForge is not reachable.'}`);
+        }
       } catch (err) {
         console.error('Failed to launch StartupForge', err);
+        setMvpStatus('✗ Could not reach Orbit\'s server to check StartupForge.');
+      } finally {
+        setIsLaunchingMvp(false);
       }
       return;
     }
@@ -1293,10 +1313,11 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => handleMvpAction('build')}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold text-white bg-gradient-to-r from-[#a53600] to-[#cc490e] hover:from-[#812800] hover:to-[#a53600] rounded-xl transition shadow-xl shadow-[#a53600]/25 active:scale-95"
+                    disabled={isLaunchingMvp}
+                    className="flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold text-white bg-gradient-to-r from-[#a53600] to-[#cc490e] hover:from-[#812800] hover:to-[#a53600] rounded-xl transition shadow-xl shadow-[#a53600]/25 active:scale-95 disabled:opacity-60"
                   >
                     <Play className="w-4 h-4" />
-                    <span>StartupForge</span>
+                    <span>{isLaunchingMvp ? 'Connecting...' : 'StartupForge'}</span>
                   </button>
                   <button
                     type="button"
@@ -1307,7 +1328,11 @@ export default function App() {
                     <span>Fix your MVP software</span>
                   </button>
                 </div>
-                <p className="text-[10px] text-stone-400 font-mono">Hands off to the resumable StartupForge Codex build service</p>
+                {mvpStatus ? (
+                  <p className={`text-xs font-mono ${mvpStatus.startsWith('✗') ? 'text-red-600' : 'text-emerald-600'}`}>{mvpStatus}</p>
+                ) : (
+                  <p className="text-[10px] text-stone-400 font-mono">Hands off to the resumable StartupForge Codex build service</p>
+                )}
               </div>
               ) : (
               <div className="lg:col-span-8 glass-panel rounded-2xl p-5 shadow-2xl flex flex-col h-[600px] bg-white/70 border-stone-200/70">
