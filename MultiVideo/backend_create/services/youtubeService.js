@@ -53,7 +53,9 @@ class YouTubeService {
                         description: videoMetadata.description
                     },
                     status: {
-                        privacyStatus: 'public' // Default to public
+                        privacyStatus: ['private', 'unlisted', 'public'].includes(videoMetadata.privacyStatus)
+                            ? videoMetadata.privacyStatus
+                            : 'private'
                     }
                 },
                 media: {
@@ -62,7 +64,7 @@ class YouTubeService {
             });
             return res.data;
         } catch (error) {
-            console.error('Error uploading to YouTube:', error);
+            console.error('YouTube upload failed:', error.message);
             throw error;
         }
     }

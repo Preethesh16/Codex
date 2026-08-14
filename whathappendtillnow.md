@@ -129,4 +129,44 @@ changing `main` or causing external publishing without approval.
 - Live Codex build not run because credentials have not been supplied.
 - `npm test`: passed 2 safety tests for generated-root containment and snapshot
   rollback after correcting a root-path validation edge case.
+- Commit and push: `c32bcaa` pushed successfully to
+  `codex/orbit-openai-migration`.
+
+### Implementation batch — approval-gated publishing and credential storage
+
+- Changed `/api/publish` into an approval-request endpoint; it cannot make an
+  external publishing call.
+- Added authenticated list, approve, and reject routes with atomic pending to
+  executing transitions to prevent double approval.
+- The explicit approve route can publish only through the existing YouTube
+  OAuth adapter. Facebook, Instagram, LinkedIn, and Twitter requests are
+  returned as unavailable without calling their mocked adapters.
+- YouTube visibility now defaults to private and uses the approved request's
+  explicit private/unlisted/public selection.
+- Added AES-256-GCM encryption getters/setters for stored OAuth credentials and
+  made an encryption key mandatory before new accounts can be connected.
+- Removed a concrete client identifier from the environment template and
+  limited YouTube failure logging to the error message.
+
+#### Files changed
+
+- `MultiVideo/backend_create/models/PublishApproval.js`
+- `MultiVideo/backend_create/models/Account.js`
+- `MultiVideo/backend_create/routes/publishRoutes.js`
+- `MultiVideo/backend_create/services/publishingPolicy.js`
+- `MultiVideo/backend_create/services/credentialVault.js`
+- `MultiVideo/backend_create/services/youtubeService.js`
+- `MultiVideo/backend_create/.env.example`
+- `MultiVideo/backend_create/package.json`
+- `MultiVideo/backend_create/package-lock.json`
+- `MultiVideo/backend_create/test/publishingPolicy.test.js`
+
+#### Verification and status
+
+- MultiVideo tests: passed 3 tests for private-default publishing policy,
+  unavailable adapters, mandatory platform selection, and encrypted credential
+  round trips.
+- Node syntax checks passed for the server entry point, publishing routes,
+  approval model, credential vault, and YouTube adapter.
+- No OAuth, upload, or publishing calls were made.
 - Commit and push: pending immediately after this audit update.
