@@ -2,6 +2,7 @@ import type { StartupContext } from 'orbit-core';
 
 export function startupForgeProfileFromContext(context: StartupContext) {
   return {
+    externalWorkspaceId: context.workspaceId,
     businessName: context.companyName, founderName: '', industry: context.business.niche,
     stage: context.business.stage, location: '', problemStatement: context.founderProfile.vision,
     solution: context.product.features.join(', '), mission: context.founderProfile.vision,

@@ -47,7 +47,7 @@ export default function FixCenter() {
 
   useEffect(() => { loadFeedback(); /* eslint-disable-next-line */ }, []);
 
-  const importExcel = async () => {
+  const importCsv = async () => {
     setBusy('import');
     try {
       await axios.post('/api/feedback/import');
@@ -55,11 +55,11 @@ export default function FixCenter() {
     } finally { setBusy(''); }
   };
 
-  const syncExcel = async () => {
+  const syncCsv = async () => {
     setBusy('sync');
     try {
       const { data } = await axios.post('/api/feedback/sync');
-      alert(`Synced ${data.rows} rows back to Excel:\n${data.path}`);
+      alert(`Synced ${data.rows} rows back to CSV:\n${data.path}`);
     } finally { setBusy(''); }
   };
 
@@ -112,17 +112,17 @@ export default function FixCenter() {
           gap: 12, marginBottom: 16, flexWrap: 'wrap'
         }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={importExcel} disabled={!!busy} style={primaryBtn}>
-              {busy === 'import' ? 'Importing…' : 'Import from Excel'}
+            <button onClick={importCsv} disabled={!!busy} style={primaryBtn}>
+              {busy === 'import' ? 'Importing…' : 'Import from CSV'}
             </button>
-            <button onClick={syncExcel} disabled={!!busy} style={ghostBtn}>
-              {busy === 'sync' ? 'Syncing…' : 'Sync to Excel'}
+            <button onClick={syncCsv} disabled={!!busy} style={ghostBtn}>
+              {busy === 'sync' ? 'Syncing…' : 'Sync to CSV'}
             </button>
             <button onClick={() => setShowForm(true)} style={ghostBtn}>Add Feedback</button>
             <button onClick={loadFeedback} style={ghostBtn}>Refresh</button>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-            {workbookPath || 'feedback.xlsx'}
+            {workbookPath || 'feedback.csv'}
           </div>
         </div>
 
@@ -134,7 +134,7 @@ export default function FixCenter() {
             textAlign: 'center', padding: 60, color: 'var(--text-muted)',
             border: '1px dashed var(--border)', borderRadius: 14
           }}>
-            No feedback in this view. Connect a Google Form export or click <b>Import from Excel</b>.
+            No feedback in this view. Connect a Google Forms CSV export or click <b>Import from CSV</b>.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

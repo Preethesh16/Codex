@@ -1,27 +1,58 @@
 /**
  * feedbackService.ts
  * ------------------------------------------------------------------
- * Bridges an Excel workbook (e.g. a Google Form → Google Sheets export
- * downloaded as .xlsx, or any spreadsheet) with the app's feedback queue.
+ * Bridges a local CSV export (for example Google Forms → Sheets → CSV) with
+ * the app's feedback queue without parsing binary documents.
  *
  * Flow:
- *   Google Form  →  Google Sheet  →  Download .xlsx  →  feedback.xlsx
+ *   Google Form  →  Google Sheet  →  Download CSV  →  feedback.csv
  *        ↓ import()
  *   SQLite `feedback` table  →  Fix Center UI  →  autonomous fix  →  approve
- *        ↓ syncToExcel()
- *   feedback.xlsx status column updated (round-trips back to the sheet)
+ *        ↓ syncToCsv()
+ *   feedback.csv status column updated
  *
- * The .xlsx path is configured via FEEDBACK_XLSX_PATH (default ./feedback.xlsx).
- * On first run a sample workbook is seeded so the feature works out-of-the-box.
+ * The path is configured via FEEDBACK_CSV_PATH (default ./feedback.csv).
  */
-import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
 import { db } from '../db/database';
 
-const XLSX_PATH = path.isAbsolute(process.env.FEEDBACK_XLSX_PATH || '')
-  ? (process.env.FEEDBACK_XLSX_PATH as string)
-  : path.join(process.cwd(), process.env.FEEDBACK_XLSX_PATH || 'feedback.xlsx');
+const CSV_PATH = path.isAbsolute(process.env.FEEDBACK_CSV_PATH || '')
+  ? (process.env.FEEDBACK_CSV_PATH as string)
+  : path.join(process.cwd(), process.env.FEEDBACK_CSV_PATH || 'feedback.csv');
+
+function parseCsv(input: string): Record<string, string>[] {
+  const records: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    if (quoted && char === '"' && input[index + 1] === '"') { field += '"'; index += 1; }
+    else if (char === '"') quoted = !quoted;
+    else if (char === ',' && !quoted) { row.push(field); field = ''; }
+    else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && input[index + 1] === '\n') index += 1;
+      row.push(field); field = '';
+      if (row.some((value) => value.length)) records.push(row);
+      row = [];
+    } else field += char;
+  }
+  if (field.length || row.length) { row.push(field); records.push(row); }
+  const headers = records.shift()?.map((header) => header.replace(/^\uFEFF/, '').trim()) || [];
+  return records.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ''])));
+}
+
+function csvCell(value: unknown): string {
+  const text = String(value ?? '');
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function writeCsv(rows: Record<string, unknown>[]): void {
+  const headers = rows.length ? Object.keys(rows[0]) : ['ID', 'Message', 'Status'];
+  const lines = [headers.map(csvCell).join(','), ...rows.map((row) => headers.map((header) => csvCell(row[header])).join(','))];
+  fs.writeFileSync(CSV_PATH, `${lines.join('\n')}\n`, 'utf8');
+}
 
 // ─── Scoring ────────────────────────────────────────────────────────────────
 
@@ -57,7 +88,7 @@ export function computeScore(priority: string, urgency: string): number {
   return (PRIORITY_WEIGHT[priority] || 2) * 10 + (URGENCY_WEIGHT[urgency] || 2);
 }
 
-// ─── Excel column mapping (tolerant of Google Form header naming) ────────────
+// ─── CSV column mapping (tolerant of Google Form header naming) ──────────────
 
 function pick(row: Record<string, any>, keys: string[]): string {
   const lowerMap: Record<string, any> = {};
@@ -76,15 +107,13 @@ interface ImportResult {
 }
 
 /**
- * Read the Excel workbook and upsert rows into the feedback table.
+ * Read the CSV export and upsert rows into the feedback table.
  * Dedupe key = external_id (Google Forms "Timestamp" + email, or an explicit ID column).
  */
-export function importFromExcel(): ImportResult {
-  ensureWorkbookExists();
+export function importFromCsv(): ImportResult {
+  ensureFeedbackCsvExists();
 
-  const wb = XLSX.readFile(XLSX_PATH);
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  const rows = parseCsv(fs.readFileSync(CSV_PATH, 'utf8'));
 
   let imported = 0;
   let updated = 0;
@@ -122,7 +151,7 @@ export function importFromExcel(): ImportResult {
           INSERT INTO feedback
             (external_id, source, user_name, email, project_path, category, message,
              priority, urgency, score, status, created_at)
-          VALUES (?, 'excel', ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
+          VALUES (?, 'csv', ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
         `).run(externalId, userName, email, projectPath, category, message,
           priority, urgency, score, createdAt);
         imported++;
@@ -137,10 +166,10 @@ export function importFromExcel(): ImportResult {
 }
 
 /**
- * Write current statuses back to the Excel workbook so the sheet reflects
- * which requests were fixed/approved (the round-trip the user asked for).
+ * Write current statuses back to the CSV export. The function name is retained
+ * temporarily for route compatibility.
  */
-export function syncToExcel(): { rows: number; path: string } {
+export function syncToCsv(): { rows: number; path: string } {
   const items = db.prepare('SELECT * FROM feedback ORDER BY score DESC, datetime(created_at) DESC').all() as any[];
 
   const data = items.map((f) => ({
@@ -161,11 +190,8 @@ export function syncToExcel(): { rows: number; path: string } {
     'Created At': f.created_at || ''
   }));
 
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Feedback');
-  XLSX.writeFile(wb, XLSX_PATH);
-  return { rows: data.length, path: XLSX_PATH };
+  writeCsv(data);
+  return { rows: data.length, path: CSV_PATH };
 }
 
 function safeJoin(json: string): string {
@@ -178,11 +204,11 @@ function safeJoin(json: string): string {
 }
 
 /**
- * Seed a realistic sample workbook if none exists yet, so the Fix Center
+ * Seed a realistic sample CSV if none exists yet, so the Fix Center
  * has data on first launch even before a Google Form is connected.
  */
-export function ensureWorkbookExists(): void {
-  if (fs.existsSync(XLSX_PATH)) return;
+export function ensureFeedbackCsvExists(): void {
+  if (fs.existsSync(CSV_PATH)) return;
 
   const sample = [
     { Timestamp: new Date(Date.now() - 3600e3).toISOString(), Name: 'Ava Chen', Email: 'ava@acme.io', Project: '', Category: 'error', Message: 'Checkout page throws a white screen — nothing renders after clicking Pay.', Priority: 'high', Urgency: 'critical' },
@@ -193,15 +219,12 @@ export function ensureWorkbookExists(): void {
     { Timestamp: new Date(Date.now() - 21600e3).toISOString(), Name: 'Omar Haddad', Email: 'omar@quicksell.io', Project: '', Category: 'feature', Message: 'Add a testimonials section with a carousel to the landing page.', Priority: 'low', Urgency: 'low' }
   ];
 
-  const ws = XLSX.utils.json_to_sheet(sample);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Feedback');
-  XLSX.writeFile(wb, XLSX_PATH);
-  console.log(`📗 Seeded sample feedback workbook at ${XLSX_PATH}`);
+  writeCsv(sample);
+  console.log(`📗 Seeded sample feedback CSV at ${CSV_PATH}`);
 }
 
-export function getWorkbookPath(): string {
-  return XLSX_PATH;
+export function getFeedbackCsvPath(): string {
+  return CSV_PATH;
 }
 
 // ─── DB → client shape ───────────────────────────────────────────────────────

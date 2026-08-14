@@ -53,8 +53,8 @@ app.post('/api/approvals/:id/:decision', async (req, res) => {
     const baseUrl = process.env.STARTUPFORGE_URL || 'http://127.0.0.1:3001';
     const serviceToken = process.env.STARTUPFORGE_SERVICE_TOKEN;
     if (!serviceToken) throw new Error('STARTUPFORGE_SERVICE_TOKEN is not configured');
-    const profileResponse = await fetch(`${baseUrl}/api/business`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15_000),
+    const profileResponse = await fetch(`${baseUrl}/api/import/business`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceToken}` }, signal: AbortSignal.timeout(15_000),
       body: JSON.stringify(startupForgeProfileFromContext(context)),
     });
     if (!profileResponse.ok) throw new Error(`StartupForge profile sync returned HTTP ${profileResponse.status}`);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FinancePlanSchema, ORBIT_WORKFLOW_STAGES, OPENAI_MODELS, applyValidatedContextPatch, normalizeOpenAIError, orbitManagerAgent, orchestrateWorkflow, redactForOpenAI, withRetry, wrapUntrustedText } from '../dist/openaiRuntime.js';
+import { FinancePlanSchema, ORBIT_WORKFLOW_STAGES, OPENAI_MODELS, applyValidatedContextPatch, findContextPatchConflicts, normalizeOpenAIError, orbitManagerAgent, orchestrateWorkflow, redactForOpenAI, validateWorkflowOutput, withRetry, wrapUntrustedText } from '../dist/openaiRuntime.js';
 
 test('privacy gate redacts credentials and common personal identifiers', () => {
   const value = redactForOpenAI('email founder@example.com phone +91 9876543210 api_key=sk-exampleabcdefghijklmnop PAN ABCDE1234F');
@@ -70,4 +70,23 @@ test('untrusted uploads are isolated and expanded financial credentials are reda
   assert.doesNotMatch(wrapped, /HDFC0123456/);
   assert.doesNotMatch(wrapped, /123456789012/);
   assert.doesNotMatch(wrapped, /eyJabc\.def\.ghi/);
+});
+
+test('eval guard rejects ungrounded research and unsafe legal certainty', () => {
+  const base = { summary: 'Evidence-backed result', citations: [{ title: 'Primary source', url: 'https://example.com/source' }], assumptions: ['Verify with qualified counsel'], contextPatch: {} };
+  assert.equal(validateWorkflowOutput('research', base).summary, base.summary);
+  assert.throws(() => validateWorkflowOutput('research', { ...base, citations: [] }), /requires at least one source citation/);
+  assert.throws(() => validateWorkflowOutput('legal', { ...base, summary: 'This is fully compliant and safe to file.' }), /unsafe certainty claim/);
+  assert.equal(validateWorkflowOutput('legal', { ...base, summary: 'General information; local counsel should verify filing requirements.' }).summary.includes('counsel'), true);
+});
+
+test('eval guard surfaces inconsistent specialist patches for Conflict Resolution', () => {
+  const base = { summary: 'ok', citations: [], assumptions: [], contextPatch: {} };
+  const conflicts = findContextPatchConflicts([
+    { department: 'finance', output: { ...base, contextPatch: { business: { targetMarket: 'Enterprise' }, financials: { runwayMonths: 8 } } } },
+    { department: 'legal', output: { ...base, contextPatch: { business: { targetMarket: 'Consumers' } } } },
+    { department: 'brand', output: { ...base, contextPatch: { business: { targetMarket: 'Enterprise' } } } },
+  ]);
+  assert.deepEqual(conflicts.map((conflict) => conflict.path), ['business.targetMarket']);
+  assert.deepEqual(conflicts[0].values.map((entry) => entry.department), ['finance', 'legal', 'brand']);
 });

@@ -9,6 +9,29 @@ offline tests pass. Live OpenAI image/video/voice, OAuth/YouTube, and browser
 end-to-end verification remain environment-gated because no API/OAuth
 credentials were supplied; no external publication or deployment was attempted.
 
+### Verification matrix
+
+| Requirement | Authoritative local evidence | Status |
+| --- | --- | --- |
+| Agent topology, model routing, stage order, parallelism | `openaiRuntime.test.mjs` plus compiled Orbit server | Verified |
+| Structured outputs, citations, legal certainty, budget math, conflicts | Orbit schema/eval tests | Verified |
+| Privacy redaction, untrusted-data isolation, text/CSV-only cloud extraction | Orbit and StartupForge privacy tests; CSV HTTP integration test | Verified |
+| Context patch allowlist and public run/approval/media types | Orbit core/server build and schema tests | Verified |
+| Codex Planner → implement → Critic → repair, resumption, containment, diff, rollback | StartupForge build-safety tests | Verified |
+| Durable build jobs, SSE replay, canonical/compatibility events | StartupForge job/event tests | Verified |
+| Authenticated Orbit → StartupForge handoff and workspace isolation | StartupForge isolated HTTP integration test | Verified |
+| GPT Image generate/edit persistence, voice persistence, Sora polling and fallback | Mock creative HTTP integration test | Verified without provider spend |
+| YouTube agent tool and no-upload-before-approval invariant | MultiVideo Agents SDK/publishing tests | Verified without OAuth call |
+| Every Node build and generated MVP smoke | Full package build pass and StartupForge generated-project test | Verified |
+| Live Agents, GPT Image, Sora, TTS, Codex, Google OAuth, and YouTube | Requires locally supplied credentials and explicit external-action approval | Pending environment |
+| Full credentialed browser journey | Requires the preceding live services | Pending environment |
+
+Production dependency audits are clean for MultiVideo, StartupForge server and
+client, and the standalone Orbit workspace. Orbit's text-only pitch-deck path
+still inherits an upstream `image-size` advisory through `pptxgenjs`; no patched
+dependency path exists in the current lockfile, uploaded images are never passed
+to that renderer, and a forced incompatible downgrade was not applied.
+
 ## Repository and goal bootstrap
 
 - Preserve the original `origin` remote and publish migration work only to

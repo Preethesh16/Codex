@@ -2,7 +2,9 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { decryptCredential, encryptCredential } from '../services/credentialVault';
 
-const DB_PATH = path.join(process.cwd(), 'startupforge.db');
+const DB_PATH = process.env.STARTUPFORGE_DB_PATH
+  ? path.resolve(process.env.STARTUPFORGE_DB_PATH)
+  : path.join(process.cwd(), 'startupforge.db');
 export const db = new Database(DB_PATH);
 
 // Enable WAL mode for better concurrent performance
@@ -11,6 +13,7 @@ db.pragma('journal_mode = WAL');
 db.exec(`
   CREATE TABLE IF NOT EXISTS business_profiles (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_workspace_id TEXT,
     business_name       TEXT NOT NULL,
     founder_name        TEXT DEFAULT '',
     industry            TEXT DEFAULT '',
@@ -84,12 +87,12 @@ db.exec(`
     FOREIGN KEY (business_id) REFERENCES business_profiles(id) ON DELETE CASCADE
   );
 
-  -- User feedback collected from an Excel sheet (e.g. a Google Form export)
+  -- User feedback collected from a local CSV export
   -- and turned into autonomous fix requests.
   CREATE TABLE IF NOT EXISTS feedback (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     external_id   TEXT DEFAULT '',        -- stable key from the source row (dedupe)
-    source        TEXT DEFAULT 'excel',   -- excel | form | manual
+    source        TEXT DEFAULT 'csv',     -- csv | form | manual
     user_name     TEXT DEFAULT '',
     email         TEXT DEFAULT '',
     project_path  TEXT DEFAULT '',
@@ -154,6 +157,9 @@ function tryAddColumn(table: string, columnDef: string) {
   }
 }
 tryAddColumn('mvp_builds', "github_pages_url TEXT DEFAULT ''");
+tryAddColumn('business_profiles', 'external_workspace_id TEXT');
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_business_profiles_external_workspace
+  ON business_profiles(external_workspace_id) WHERE external_workspace_id IS NOT NULL`);
 
 // Helper functions
 export function getBusinessProfile(id: number) {

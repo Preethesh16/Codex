@@ -4,6 +4,7 @@ const { normalizePublishRequest } = require('../services/publishingPolicy');
 process.env.TOKEN_ENCRYPTION_KEY = 'test-only-key-that-is-never-used-in-production';
 const { encryptSecret, decryptSecret } = require('../services/credentialVault');
 const { executeApprovedPublish } = require('../services/approvedPublisher');
+const { createYouTubePublishTool } = require('../services/youtubePublishTool');
 
 test('publishing defaults to private and identifies unavailable adapters', () => {
     const request = normalizePublishRequest(['youtube', 'linkedin', 'youtube'], 'invalid');
@@ -34,4 +35,28 @@ test('publishing adapter cannot execute before explicit approval', async () => {
     }), /explicitly approved/);
     assert.equal(uploads, 0);
     assert.equal(video.platformLogs.length, 0);
+});
+
+test('OpenAI YouTube tool requires native approval and only queues a pending request', async () => {
+    let requests = 0;
+    let uploads = 0;
+    const publishTool = createYouTubePublishTool({
+        requestApproval: async (input) => {
+            requests += 1;
+            assert.deepEqual(input.platforms, ['youtube']);
+            assert.equal(input.privacyStatus, 'private');
+            return { approvalId: 'approval-1', status: 'pending' };
+        },
+        uploadYouTube: async () => { uploads += 1; }
+    });
+
+    const input = JSON.stringify({ videoId: 'video-1', privacyStatus: 'private', reason: 'Founder requested launch' });
+    assert.equal(publishTool.name, 'request_youtube_publish');
+    assert.equal(await publishTool.needsApproval({}, input), true);
+    assert.deepEqual(await publishTool.invoke({}, input), {
+        approvalId: 'approval-1', status: 'pending', requiresHumanApproval: true,
+        message: 'Nothing was published. Approve the pending request in MultiVideo.'
+    });
+    assert.equal(requests, 1);
+    assert.equal(uploads, 0);
 });

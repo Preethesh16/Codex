@@ -4,7 +4,7 @@ import { startupForgeProfileFromContext } from '../dist/startupForgeBridge.js';
 
 test('Orbit to StartupForge handoff omits founder identity and location', () => {
   const profile = startupForgeProfileFromContext({
-    companyName: 'Orbit Demo',
+    workspaceId: 'workspace-private-test', companyName: 'Orbit Demo',
     founderProfile: { vision: 'Solve a workflow problem', location: 'Private Location' },
     business: { niche: 'SaaS', stage: 'GTM', targetMarket: 'Teams', tam: '$1B' },
     product: { features: ['Dashboard'], techStack: ['React'] },
@@ -12,6 +12,7 @@ test('Orbit to StartupForge handoff omits founder identity and location', () => 
   });
   assert.equal(profile.founderName, '');
   assert.equal(profile.location, '');
+  assert.equal(profile.externalWorkspaceId, 'workspace-private-test');
   assert.doesNotMatch(JSON.stringify(profile), /Private Location/);
   assert.equal(profile.businessName, 'Orbit Demo');
 });

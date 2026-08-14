@@ -5,8 +5,12 @@ const PublishApproval = require('../models/PublishApproval');
 const youtubeService = require('../services/youtubeService');
 const { normalizePublishRequest } = require('../services/publishingPolicy');
 const { executeApprovedPublish } = require('../services/approvedPublisher');
+const { createYouTubePublishTool } = require('../services/youtubePublishTool');
 
 module.exports = (app) => {
+    // Agent runners create a user-scoped instance with this factory. Keeping it
+    // on app.locals avoids accepting a model-supplied user identifier.
+    app.locals.createYouTubePublishTool = (requestApproval) => createYouTubePublishTool({ requestApproval });
     // Agent/tool-facing request endpoint: this never publishes by itself.
     app.post('/api/publish', requireLogin, async (req, res) => {
         try {

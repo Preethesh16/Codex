@@ -3,6 +3,197 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-14 19:14:11 IST — Continue locally verifiable completion work
+
+### Request summary
+
+Continue the active migration goal from the clean, pushed branch. Re-audit the
+full approved plan from authoritative repository evidence, close remaining gaps
+that can be verified without credentials, run proportionate integration and
+end-to-end checks, document the results, and publish verified milestones only
+to `codex/orbit-openai-migration`.
+
+### Current batch status
+
+- Confirmed the worktree is clean on `orbit-openai-migration` at `cc46732` and
+  matches `codex/orbit-openai-migration`.
+- Prioritized cross-service authorization, media state/error contracts, and an
+  offline end-to-end demo proof while live provider credentials remain absent.
+- Files changed so far: this audit entry only.
+- Tests, commit, and push: pending completion-audit findings.
+
+### Change batch — native Agents SDK YouTube approval tool
+
+- Added a user-scoped `request_youtube_publish` OpenAI Agents SDK tool with
+  native `needsApproval` behavior.
+- Tool execution can only create MultiVideo's durable pending publication
+  request; the separately authenticated approval endpoint remains the sole path
+  to the YouTube adapter.
+- Registered a safe factory on the MultiVideo app without accepting a
+  model-supplied user identity and added proof that tool invocation performs no
+  upload.
+
+#### Files changed
+
+- `MultiVideo/backend_create/package.json`
+- `MultiVideo/backend_create/package-lock.json`
+- `MultiVideo/backend_create/services/youtubePublishTool.js`
+- `MultiVideo/backend_create/routes/publishRoutes.js`
+- `MultiVideo/backend_create/test/publishingPolicy.test.js`
+
+#### Verification and status
+
+- MultiVideo tests: 5 passed.
+- Publishing route and tool syntax checks: passed.
+- Dependency installation reported 11 existing transitive audit findings (1
+  low, 3 moderate, 7 high); no automatic broad dependency mutation was run.
+- No OAuth or publishing request was made.
+- Commit and push: pending completion of this milestone.
+
+### Change batch — full mock media contract verification
+
+- Added a narrow injected OpenAI media-client seam and configurable upload root
+  while preserving the production client by default.
+- Exercised the real creative HTTP routes with a fake provider to prove GPT
+  Image generation/edit persistence, voiceover persistence, asynchronous Sora
+  polling/completion, normalized quota errors, three-still GPT Image fallback,
+  and the eight-second offline storyboard.
+- The first test run exposed that generated assets did not follow the configured
+  upload root; aligned generated files and media indexes under the same root and
+  reran successfully.
+
+#### Files changed
+
+- `Orbit-main/packages/server/src/creative.ts`
+- `Orbit-main/packages/server/test/mediaFallback.test.mjs`
+
+#### Verification and status
+
+- Full Orbit monorepo build: passed.
+- Orbit server tests: 10 passed after the storage-root fix.
+- No live OpenAI call or quota was consumed.
+- Commit and push: pending completion of this milestone.
+
+### Change batch — authenticated, workspace-isolated StartupForge imports
+
+- Replaced Orbit's public latest-profile synchronization with a bearer-protected
+  `/api/import/business` endpoint.
+- Added a stable external workspace key and partial unique index so concurrent
+  Orbit workspaces update only their own StartupForge profiles.
+- Kept the existing local StartupForge UI profile route while preventing it from
+  selecting an Orbit workspace identifier.
+- Added an isolated-database HTTP integration test proving unauthorized imports
+  fail, separate workspaces receive separate rows, and repeated imports update
+  only the matching workspace.
+
+#### Files changed
+
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/packages/server/src/startupForgeBridge.ts`
+- `Orbit-main/packages/server/test/startupForgeBridge.test.mjs`
+- `startupforge/server/src/db/database.ts`
+- `startupforge/server/src/index.ts`
+- `startupforge/server/test/serviceImport.test.js`
+
+#### Verification and status
+
+- StartupForge server build: passed; 11 tests passed.
+- Full Orbit monorepo build: passed; 10 server tests passed.
+- No build job or Codex thread was submitted.
+- Commit and push: pending completion of this milestone.
+
+### Change batch — dependency and CSV ingestion hardening
+
+- Applied non-breaking audit fixes to MultiVideo, StartupForge server/client,
+  and the standalone Orbit workspace; upgraded StartupForge's router after its
+  current v6 line remained affected and verified the v7 build.
+- Removed the unpatched `xlsx` dependency and binary workbook parser. The Fix
+  Center now imports/exports deterministic local CSV, matching the approved
+  text/CSV demo scope while retaining its existing HTTP route contracts.
+- Added quoted-field CSV coverage through the isolated StartupForge HTTP test.
+
+#### Files changed
+
+- `MultiVideo/backend_create/package-lock.json`
+- `Orbit-main/workspace/package-lock.json`
+- `startupforge/client/package.json`
+- `startupforge/client/package-lock.json`
+- `startupforge/client/src/pages/FixCenter.tsx`
+- `startupforge/server/package.json`
+- `startupforge/server/package-lock.json`
+- `startupforge/server/.env.example`
+- `startupforge/server/src/services/feedbackService.ts`
+- `startupforge/server/src/db/database.ts`
+- `startupforge/server/src/index.ts`
+- `startupforge/server/test/serviceImport.test.js`
+
+#### Verification and status
+
+- MultiVideo production dependency audit: zero known vulnerabilities; 5 tests
+  passed after updates.
+- StartupForge server and client production dependency audits: zero known
+  vulnerabilities; server build and 11 tests passed; client build passed.
+- Standalone Orbit workspace production dependency audit: zero known
+  vulnerabilities; build passed.
+- Orbit's `pptxgenjs` dependency still reports the upstream `image-size`
+  advisory with no current patched dependency path; Orbit never sends uploaded
+  images to that library, and replacing the PPTX contract requires a separate
+  compatible renderer rather than an unsafe forced downgrade.
+- Commit and push: pending completion of this milestone.
+
+### Change batch — research, legal, and conflict eval enforcement
+
+- Added department-aware structured-output validation: Research and Marketing
+  must include at least one valid source URL, while Legal outputs containing
+  absolute compliance guarantees are rejected.
+- Added deterministic context-patch conflict detection and include detected
+  field/value disagreements in the Conflict Resolution stage input.
+- Added eval cases for ungrounded research, unsafe legal certainty, and
+  inconsistent specialist patches, complementing the existing budget, prompt
+  injection, PII, and malicious-path tests.
+- Extended mock media coverage to prove interrupted jobs recover to an explicit
+  `server_restart` fallback state.
+
+#### Files changed
+
+- `Orbit-main/packages/server/src/openaiRuntime.ts`
+- `Orbit-main/packages/server/test/openaiRuntime.test.mjs`
+- `Orbit-main/packages/server/test/mediaFallback.test.mjs`
+
+#### Verification and status
+
+- Full Orbit monorepo build: passed after the conflict/recovery additions.
+- Orbit server tests: 12 passed.
+- StartupForge server build and 11 tests: passed; client build: passed.
+- Standalone Orbit workspace build: passed.
+- MultiVideo 5 tests and backend syntax checks: passed.
+- Production dependency audits are clean for MultiVideo, StartupForge
+  server/client, and the standalone Orbit workspace. The documented upstream
+  text-only PPTX renderer advisory remains the sole audit finding.
+- Provider scan found only the explicitly temporary `gemma:*` compatibility
+  alias; secret-pattern scan found only fake test/placeholders.
+- No live provider, OAuth, publishing, deployment, or GitHub write occurred.
+- Commit and push: pending completion of this milestone.
+
+### Change batch — verification matrix and operator configuration
+
+- Added a requirement-to-evidence matrix to the approved plan, clearly
+  distinguishing locally verified behavior from credential-gated live checks.
+- Documented configurable Orbit upload and StartupForge database/CSV paths and
+  the authenticated profile-import endpoint.
+
+#### Files changed
+
+- `OPENAI_MIGRATION_PLAN.md`
+- `Orbit-main/packages/server/.env.example`
+- `startupforge/server/.env.example`
+- `startupforge/README.md`
+
+#### Verification and status
+
+- Documentation/configuration diff check: passed.
+- Commit and push: pending milestone commit.
+
 ## 2026-08-14 18:54:37 IST — Continue completion audit
 
 ### Request summary

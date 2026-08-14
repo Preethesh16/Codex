@@ -16,6 +16,8 @@ thread and follows Planner → implementation → Critic → repair.
 4. HTTP build jobs (`POST /api/builds`) and SSE event reads let Orbit invoke the
    service on every operating system. Socket.IO remains available for the UI.
 5. Deployment and GitHub publishing remain explicit human actions.
+6. Fix Center ingestion accepts local CSV exports. Binary spreadsheets remain
+   local and are not parsed by the demo privacy gate.
 
 ## Setup
 
@@ -37,7 +39,7 @@ The server runs on `http://localhost:3001`; the client runs on
 `http://localhost:5173`. Windows users may run `start.bat`, but Orbit itself
 uses the HTTP API and has no platform-specific launcher dependency.
 
-All `/api/builds` endpoints require `Authorization: Bearer
+All `/api/builds` and `/api/import/business` endpoints require `Authorization: Bearer
 <STARTUPFORGE_SERVICE_TOKEN>`. Orbit sends the token server-to-server only; it
 must never be exposed to either browser client.
 
@@ -49,3 +51,5 @@ must never be exposed to either browser client.
 - Codex does not publish, deploy, or write to GitHub in its build sandbox.
 - Use `POST /api/builds/:jobId/rollback` with the returned snapshot ID to restore
   a pre-edit project state.
+- Set `STARTUPFORGE_DB_PATH` and `FEEDBACK_CSV_PATH` when durable data should
+  live outside the server working directory.

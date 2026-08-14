@@ -19,7 +19,7 @@ import { compileBusinessContext } from './services/contextService';
 import { runCodexBuild, sendFollowUpCommand, rollbackSnapshot, validateProjectPath, type EventSink } from './services/antigravityService';
 import { deployMVP } from './services/deployService';
 import {
-  importFromExcel, syncToExcel, ensureWorkbookExists, getWorkbookPath,
+  importFromCsv, syncToCsv, ensureFeedbackCsvExists, getFeedbackCsvPath,
   mapFeedbackRow, computeScore
 } from './services/feedbackService';
 import {
@@ -184,9 +184,13 @@ app.post('/api/builds/:jobId/rollback', (req, res) => {
 
 // ─── BUSINESS PROFILE ROUTES ───────────────────────────────────────────────
 
-// Create or update business profile
-app.post('/api/business', (req, res) => {
+// Create or update a business profile. Cross-service imports are authenticated
+// and keyed per Orbit workspace; the local UI keeps its legacy latest-profile
+// behavior without being allowed to choose an external workspace identifier.
+function businessProfileHandler(trustedImport: boolean): express.RequestHandler {
+  return (req, res) => {
   const {
+    externalWorkspaceId,
     businessName, founderName, industry, stage, location,
     problemStatement, solution, mission, vision, uniqueValueProp,
     productType, revenueModel, targetMarket, marketSize,
@@ -194,11 +198,17 @@ app.post('/api/business', (req, res) => {
     designStyle, brandColors, githubRepoUrl, hasExistingCode
   } = req.body;
 
-  const existing = db.prepare('SELECT id FROM business_profiles ORDER BY id DESC LIMIT 1').get() as any;
+  if (!businessName) return res.status(400).json({ error: 'businessName is required' });
+  const workspaceKey = trustedImport ? String(externalWorkspaceId || '').trim() : '';
+  if (trustedImport && !workspaceKey) return res.status(400).json({ error: 'externalWorkspaceId is required' });
+  const existing = (workspaceKey
+    ? db.prepare('SELECT id FROM business_profiles WHERE external_workspace_id = ?').get(workspaceKey)
+    : db.prepare('SELECT id FROM business_profiles WHERE external_workspace_id IS NULL ORDER BY id DESC LIMIT 1').get()) as any;
 
   if (existing) {
     db.prepare(`
       UPDATE business_profiles SET
+        external_workspace_id=COALESCE(?, external_workspace_id),
         business_name=?, founder_name=?, industry=?, stage=?, location=?,
         problem_statement=?, solution=?, mission=?, vision=?, unique_value_prop=?,
         product_type=?, revenue_model=?, target_market=?, market_size=?,
@@ -207,6 +217,7 @@ app.post('/api/business', (req, res) => {
         updated_at=CURRENT_TIMESTAMP
       WHERE id=?
     `).run(
+      workspaceKey || null,
       businessName, founderName, industry, stage, location,
       problemStatement, solution, mission, vision, uniqueValueProp,
       productType, revenueModel, targetMarket, marketSize,
@@ -218,13 +229,14 @@ app.post('/api/business', (req, res) => {
   } else {
     const result = db.prepare(`
       INSERT INTO business_profiles (
-        business_name, founder_name, industry, stage, location,
+        external_workspace_id, business_name, founder_name, industry, stage, location,
         problem_statement, solution, mission, vision, unique_value_prop,
         product_type, revenue_model, target_market, market_size,
         preferred_frontend, preferred_backend, preferred_db, preferred_cloud,
         design_style, brand_colors, github_repo_url, has_existing_code
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
+      workspaceKey || null,
       businessName, founderName, industry, stage, location,
       problemStatement, solution, mission, vision, uniqueValueProp,
       productType, revenueModel, targetMarket, marketSize,
@@ -233,7 +245,11 @@ app.post('/api/business', (req, res) => {
     );
     return res.json({ id: result.lastInsertRowid, created: true });
   }
-});
+  };
+}
+
+app.post('/api/import/business', requireServiceToken, rateLimit(30, 60_000), businessProfileHandler(true));
+app.post('/api/business', businessProfileHandler(false));
 
 // Get business profile
 app.get('/api/business/:id', (req, res) => {
@@ -303,7 +319,7 @@ app.get('/api/feedback', (_req, res) => {
     completed: items.filter((i) => i.status === 'completed').length,
     rejected: items.filter((i) => i.status === 'rejected').length
   };
-  res.json({ items, stats, workbook: getWorkbookPath() });
+  res.json({ items, stats, workbook: getFeedbackCsvPath() });
 });
 
 // Add a single feedback item (simulates a Google Form / web form submission)
@@ -329,10 +345,10 @@ app.post('/api/feedback', (req, res) => {
   res.json({ id: result.lastInsertRowid, item });
 });
 
-// Re-import from the Excel workbook (Google Form export)
+// Re-import from the local CSV export (route name retained for compatibility)
 app.post('/api/feedback/import', (_req, res) => {
   try {
-    const result = importFromExcel();
+    const result = importFromCsv();
     const items = (listFeedback() as any[]).map(mapFeedbackRow);
     io.emit('feedback:refreshed', { items });
     res.json({ ...result });
@@ -341,10 +357,10 @@ app.post('/api/feedback/import', (_req, res) => {
   }
 });
 
-// Write current statuses back to the Excel workbook
+// Write current statuses back to the local CSV export
 app.post('/api/feedback/sync', (_req, res) => {
   try {
-    const result = syncToExcel();
+    const result = syncToCsv();
     res.json({ ...result });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -716,7 +732,7 @@ io.on('connection', (socket) => {
           WHERE id = ?
         `).run(JSON.stringify(result.filesCreated), summary, fb.id);
         emitFeedback(fb.id);
-        try { syncToExcel(); } catch { /* non-fatal */ }
+        try { syncToCsv(); } catch { /* non-fatal */ }
         socket.emit('feedback:fix_complete', { feedbackId: fb.id, filesChanged: result.filesCreated });
       } else {
         db.prepare('UPDATE feedback SET status = ? WHERE id = ?').run('open', fb.id);
@@ -732,7 +748,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  /** Admin approves a completed fix → ticked + statuses written back to Excel. */
+  /** Admin approves a completed fix → ticked + statuses written back to CSV. */
   socket.on('feedback:approve', (data: { feedbackId: number; autoDeploy?: boolean }) => {
     const fb = getFeedback(data.feedbackId) as any;
     if (!fb) return;
@@ -740,7 +756,7 @@ io.on('connection', (socket) => {
       .run(fb.id);
     const item = mapFeedbackRow(getFeedback(fb.id));
     io.emit('feedback:updated', { item });
-    try { syncToExcel(); } catch { /* non-fatal */ }
+    try { syncToCsv(); } catch { /* non-fatal */ }
 
     if (data.autoDeploy && fb.project_path) {
       deployMVP(fb.project_path, socket)
@@ -756,7 +772,7 @@ io.on('connection', (socket) => {
     db.prepare(`UPDATE feedback SET status = 'open', build_id = NULL WHERE id = ?`).run(fb.id);
     const item = mapFeedbackRow(getFeedback(fb.id));
     io.emit('feedback:updated', { item });
-    try { syncToExcel(); } catch { /* non-fatal */ }
+    try { syncToCsv(); } catch { /* non-fatal */ }
   });
 
   // ─── GITHUB: PUSH + PUBLISH ──────────────────────────────────────────────
@@ -817,12 +833,12 @@ io.on('connection', (socket) => {
   });
 });
 
-// Seed the sample feedback workbook and import it on boot so the Fix Center
+// Seed the sample feedback CSV and import it on boot so the Fix Center
 // has data immediately (before any Google Form is connected).
 try {
-  ensureWorkbookExists();
-  const r = importFromExcel();
-  console.log(`📗 Feedback loaded from Excel — ${r.imported} new, ${r.updated} updated, ${r.total} total.`);
+  ensureFeedbackCsvExists();
+  const r = importFromCsv();
+  console.log(`📗 Feedback loaded from CSV — ${r.imported} new, ${r.updated} updated, ${r.total} total.`);
 } catch (e: any) {
   console.warn('⚠️ Feedback import skipped:', e.message);
 }

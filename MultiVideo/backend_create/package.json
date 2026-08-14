@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@openai/agents": "^0.15.0",
     "axios": "^1.13.2",
     "connect-mongo": "^6.0.0",
     "cookie-session": "^2.1.1",
@@ -24,6 +25,7 @@
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "twitter-api-v2": "^1.29.0"
+    "twitter-api-v2": "^1.29.0",
+    "zod": "^4.4.3"
   }
 }

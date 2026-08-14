@@ -2,7 +2,7 @@
 import type { Express } from 'express';
 import express from 'express';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import OpenAI, { toFile } from 'openai';
 import { Agent, run } from '@openai/agents';
@@ -13,14 +13,21 @@ import { OPENAI_MODELS, normalizeOpenAIError, redactForOpenAI, wrapUntrustedText
 
 const PptxGenJS: any = (pptxgen as any).default ?? pptxgen;
 const __dirnameCreative = dirname(fileURLToPath(import.meta.url));
-const GEN_DIR = join(__dirnameCreative, '../uploads/generated');
-const UPLOAD_DIR = join(__dirnameCreative, '../uploads');
+const UPLOAD_DIR = process.env.ORBIT_UPLOAD_DIR ? resolve(process.env.ORBIT_UPLOAD_DIR) : join(__dirnameCreative, '../uploads');
+const GEN_DIR = join(UPLOAD_DIR, 'generated');
 const INDEX_PATH = join(UPLOAD_DIR, 'index.json');
 const MEDIA_INDEX_PATH = join(UPLOAD_DIR, 'media-jobs.json');
 
 const client = () => {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured');
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 60_000, maxRetries: 2 });
+};
+
+type CreativeClient = ReturnType<typeof client>;
+export type CreativeDependencies = {
+  client?: () => CreativeClient;
+  sleep?: (milliseconds: number) => Promise<void>;
+  videoPollAttempts?: number;
 };
 
 function saveGenerated(name: string, buf: Buffer): string {
@@ -86,9 +93,9 @@ export function offlineStoryboard(companyName: string) {
   ] };
 }
 
-async function generateStoryboardStills(companyName: string, product: string, storyboard: z.infer<typeof StoryboardSchema>): Promise<string[]> {
+async function generateStoryboardStills(companyName: string, product: string, storyboard: z.infer<typeof StoryboardSchema>, getClient: () => CreativeClient): Promise<string[]> {
   const selected = storyboard.shots.slice(0, 3);
-  const results = await Promise.all(selected.map((shot, index) => client().images.generate({
+  const results = await Promise.all(selected.map((shot, index) => getClient().images.generate({
     model: OPENAI_MODELS.image,
     prompt: redactForOpenAI(`Storyboard still ${index + 1} for an advertisement by ${companyName}. Product: ${product}. Scene: ${shot.scene}. On-screen text: ${shot.onScreenText}. Cinematic commercial frame, legible typography, no unsupported claims.`),
     size: '1536x1024', quality: 'medium', output_format: 'png',
@@ -98,27 +105,29 @@ async function generateStoryboardStills(companyName: string, product: string, st
     : []);
 }
 
-async function processVideoJob(job: MediaJob, companyName: string, product: string, hooks: Hooks): Promise<void> {
+async function processVideoJob(job: MediaJob, companyName: string, product: string, hooks: Hooks, dependencies: CreativeDependencies): Promise<void> {
   updateMediaJob(job, { status: 'running' });
   let storyboard: z.infer<typeof StoryboardSchema> = offlineStoryboard(companyName);
   try { storyboard = await storyboardFor(companyName, product); } catch { /* offline storyboard remains */ }
   const videoPrompt = job.prompt || `Eight-second modern product advertisement for ${companyName}: ${product}.`;
+  const getClient = dependencies.client || client;
+  const sleep = dependencies.sleep || ((milliseconds: number) => new Promise<void>((resolvePromise) => setTimeout(resolvePromise, milliseconds)));
   try {
-    let video = await client().videos.create({ model: OPENAI_MODELS.video, prompt: redactForOpenAI(videoPrompt), seconds: '8', size: '1280x720' });
+    let video = await getClient().videos.create({ model: OPENAI_MODELS.video, prompt: redactForOpenAI(videoPrompt), seconds: '8', size: '1280x720' });
     updateMediaJob(job, { providerJobId: video.id, output: { storyboard: storyboard.shots } });
-    for (let attempt = 0; attempt < 60 && (video.status === 'queued' || video.status === 'in_progress'); attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 5_000));
-      video = await client().videos.retrieve(video.id);
+    for (let attempt = 0; attempt < (dependencies.videoPollAttempts || 60) && (video.status === 'queued' || video.status === 'in_progress'); attempt += 1) {
+      await sleep(5_000);
+      video = await getClient().videos.retrieve(video.id);
     }
     if (video.status !== 'completed') throw new Error(video.error?.message || `Video remains ${video.status}`);
-    const content = await client().videos.downloadContent(video.id);
+    const content = await getClient().videos.downloadContent(video.id);
     const url = saveGenerated(`ad-${uid()}.mp4`, Buffer.from(await content.arrayBuffer()));
     updateMediaJob(job, { status: 'completed', outputPaths: [url], output: { video: url, storyboard: storyboard.shots, note: 'Sora video rendered' } });
     hooks.logAgentAction('marketing', 'ADKIT_GENERATED', 'Sora video rendered');
   } catch (error) {
     const normalized = normalizeOpenAIError(error, job.traceId);
     let stills: string[] = [];
-    try { stills = await generateStoryboardStills(companyName, product, storyboard); } catch { /* venue/offline mode */ }
+    try { stills = await generateStoryboardStills(companyName, product, storyboard, getClient); } catch { /* venue/offline mode */ }
     updateMediaJob(job, {
       status: 'fallback', kind: 'storyboard', error: normalized, outputPaths: stills,
       output: { video: null, storyboard: storyboard.shots, stills, note: stills.length ? 'Sora unavailable — GPT Image storyboard stills provided' : 'Sora and GPT Image unavailable — offline storyboard provided' },
@@ -127,7 +136,8 @@ async function processVideoJob(job: MediaJob, companyName: string, product: stri
   }
 }
 
-export function registerCreative(app: Express, hooks: Hooks) {
+export function registerCreative(app: Express, hooks: Hooks, dependencies: CreativeDependencies = {}) {
+  const getClient = dependencies.client || client;
   app.use('/generated', express.static(GEN_DIR));
 
   for (const interrupted of readJsonArray<MediaJob>(MEDIA_INDEX_PATH).filter((job) => job.status === 'queued' || job.status === 'running')) {
@@ -160,7 +170,7 @@ export function registerCreative(app: Express, hooks: Hooks) {
     updateMediaJob(job, { status: 'running' });
     try {
       const attempts = Math.min(Math.max(Number(count) || 2, 1), 3);
-      const responses = await Promise.all(Array.from({ length: attempts }, (_, index) => client().images.generate({
+      const responses = await Promise.all(Array.from({ length: attempts }, (_, index) => getClient().images.generate({
         model: OPENAI_MODELS.image,
         prompt: redactForOpenAI(`${fullPrompt} Variation ${index + 1}: ${['bold and energetic', 'minimal and premium', 'vibrant editorial'][index]}.`),
         size: '1024x1024', quality: 'medium', output_format: 'png',
@@ -187,7 +197,7 @@ export function registerCreative(app: Express, hooks: Hooks) {
     const job = createMediaJob(workspaceId, 'image_edit', OPENAI_MODELS.image, prompt);
     updateMediaJob(job, { status: 'running' });
     try {
-      const response = await client().images.edit({
+      const response = await getClient().images.edit({
         model: OPENAI_MODELS.image,
         image: await toFile(input, match[1] === 'image/png' ? 'source.png' : match[1] === 'image/webp' ? 'source.webp' : 'source.jpg', { type: match[1] }),
         prompt: redactForOpenAI(String(prompt)), size: '1024x1024', quality: 'medium', output_format: 'png',
@@ -225,7 +235,7 @@ export function registerCreative(app: Express, hooks: Hooks) {
     updateMediaJob(job, { status: 'running' });
     try {
       const allowedVoices = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'onyx', 'nova', 'sage', 'shimmer', 'verse', 'marin', 'cedar']);
-      const response = await client().audio.speech.create({ model: OPENAI_MODELS.speech, voice: allowedVoices.has(voice) ? voice : 'alloy', input: redactForOpenAI(String(text)).slice(0, 4096), response_format: 'mp3' });
+      const response = await getClient().audio.speech.create({ model: OPENAI_MODELS.speech, voice: allowedVoices.has(voice) ? voice : 'alloy', input: redactForOpenAI(String(text)).slice(0, 4096), response_format: 'mp3' });
       const url = saveGenerated(`voiceover-${uid()}.mp3`, Buffer.from(await response.arrayBuffer()));
       updateMediaJob(job, { status: 'completed', outputPaths: [url] });
       hooks.logAgentAction('creative', 'VOICEOVER_GENERATED', 'OpenAI voiceover generated');
@@ -246,7 +256,7 @@ export function registerCreative(app: Express, hooks: Hooks) {
     const initial = offlineStoryboard(ctx.companyName);
     updateMediaJob(job, { output: { video: null, storyboard: initial.shots, stills: [], note: 'Sora job queued' } });
     res.status(202).json({ video: null, storyboard: initial.shots, stills: [], note: 'Sora job queued', jobId: job.id, status: job.status });
-    void processVideoJob(job, ctx.companyName, product, hooks);
+    void processVideoJob(job, ctx.companyName, product, hooks, dependencies);
   });
 
   app.post('/api/deck/generate', async (req, res) => {

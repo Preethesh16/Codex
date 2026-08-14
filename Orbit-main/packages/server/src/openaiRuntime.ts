@@ -174,6 +174,33 @@ const WorkflowOutputSchema = z.object({
 
 export type WorkflowOutput = z.infer<typeof WorkflowOutputSchema>;
 
+const unsafeLegalCertainty = /\b(?:guaranteed|definitely|certainly|100%|fully compliant|no legal risk|safe to file)\b/i;
+
+export function validateWorkflowOutput(department: OrbitDepartment, candidate: unknown): WorkflowOutput {
+  const output = WorkflowOutputSchema.parse(candidate);
+  if ((department === 'research' || department === 'marketing') && output.citations.length === 0) {
+    throw new Error(`${department} output requires at least one source citation`);
+  }
+  if (department === 'legal' && unsafeLegalCertainty.test([output.summary, ...output.assumptions].join(' '))) {
+    throw new Error('legal output contains an unsafe certainty claim');
+  }
+  return output;
+}
+
+export function findContextPatchConflicts(items: Array<{ department: OrbitDepartment; output: WorkflowOutput }>): Array<{ path: string; values: Array<{ department: OrbitDepartment; value: unknown }> }> {
+  const observed = new Map<string, Array<{ department: OrbitDepartment; value: unknown }>>();
+  const visit = (department: OrbitDepartment, value: unknown, path = ''): void => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) visit(department, child, path ? `${path}.${key}` : key);
+      return;
+    }
+    if (!path) return;
+    observed.set(path, [...(observed.get(path) || []), { department, value }]);
+  };
+  for (const item of items) visit(item.department, item.output.contextPatch);
+  return [...observed.entries()].flatMap(([path, values]) => new Set(values.map(({ value }) => JSON.stringify(value))).size > 1 ? [{ path, values }] : []);
+}
+
 export const orbitManagerAgent = new Agent({
   name: 'Orbit Manager',
   model: OPENAI_MODELS.manager,
@@ -208,7 +235,7 @@ export type WorkflowStageRunner = (department: OrbitDepartment, prior: string) =
 async function workflowRun(department: OrbitDepartment, objective: string, context: StartupContext, prior: string): Promise<WorkflowRun> {
   const traceId = crypto.randomUUID();
   const result = await withRetry(() => run(workflowAgent(department), redactForOpenAI(`${contextPrompt(context, prior)}\n\nObjective: ${objective}`), { maxTurns: 10, signal: runTimeoutSignal() }));
-  return { output: WorkflowOutputSchema.parse(result.finalOutput), traceId, usage: usageOf(result), toolCalls: toolCallsOf(result) };
+  return { output: validateWorkflowOutput(department, result.finalOutput), traceId, usage: usageOf(result), toolCalls: toolCallsOf(result) };
 }
 
 export async function runOrbitWorkflow(objective: string, context: StartupContext): Promise<Array<{ department: OrbitDepartment } & WorkflowRun>> {
@@ -234,7 +261,10 @@ export async function orchestrateWorkflow(runStage: WorkflowStageRunner): Promis
   const researchSummary = JSON.stringify(research.output);
   const parallel = await Promise.all((['finance', 'legal', 'brand'] as OrbitDepartment[]).map(async (department) => ({ department, ...await runStage(department, researchSummary) })));
   results.push(...parallel);
-  const conflict = await runStage('conflict', JSON.stringify(parallel.map(({ department, output }) => ({ department, output }))));
+  const conflict = await runStage('conflict', JSON.stringify({
+    specialists: parallel.map(({ department, output }) => ({ department, output })),
+    detectedPatchConflicts: findContextPatchConflicts(parallel),
+  }));
   results.push({ department: 'conflict', ...conflict });
   const finalPrior = JSON.stringify({ research, parallel, conflict });
   const delivery = await Promise.all((['marketing', 'code', 'sales'] as OrbitDepartment[]).map(async (department) => ({ department, ...await runStage(department, finalPrior) })));
