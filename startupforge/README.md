@@ -22,7 +22,8 @@ thread and follows Planner → implementation → Critic → repair.
 ```bash
 cd server
 cp .env.example .env
-# Add OPENAI_API_KEY to the untracked .env file.
+# Add OPENAI_API_KEY, STARTUPFORGE_SERVICE_TOKEN, and
+# STARTUPFORGE_TOKEN_ENCRYPTION_KEY to the untracked .env file.
 npm install
 npm run dev
 
@@ -35,6 +36,10 @@ npm run dev
 The server runs on `http://localhost:3001`; the client runs on
 `http://localhost:5173`. Windows users may run `start.bat`, but Orbit itself
 uses the HTTP API and has no platform-specific launcher dependency.
+
+All `/api/builds` endpoints require `Authorization: Bearer
+<STARTUPFORGE_SERVICE_TOKEN>`. Orbit sends the token server-to-server only; it
+must never be exposed to either browser client.
 
 ## Safety
 

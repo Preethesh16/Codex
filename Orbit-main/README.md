@@ -1,9 +1,25 @@
 # Orbit
 
-The Autonomous Founder Operating System. See [ORBIT.md](ORBIT.md) for the full concept and architecture, and [progress.md](progress.md) for the team task split and status tracker.
+Orbit is the founder workspace, shared `StartupContext`, OpenAI business-agent
+graph, and creative studio. Research runs first; Finance, Legal, and Brand run
+in parallel; Conflict reconciles their output; Marketing, Build, and GTM then
+run in parallel before the Manager's final audit.
 
-## Team
+The server uses `@openai/agents` and server-only OpenAI credentials. Text and CSV
+uploads are retained locally and deterministically redacted before cloud calls.
+Binary uploads remain local and are not OCR-processed. StartupForge receives a
+privacy-minimized profile only after an authenticated human approval.
 
-- **Preethesh & Deepthi** — landing page, workspace platform, end-to-end workflow UI ([progress.md](progress.md))
-- **Ashish** — Gemma local vault, document ingestion (OCR), Antigravity code-editing automation ([changes-by-ashish.md](changes-by-ashish.md))
-- **Bhavi** — research multi-agent models, agent-to-agent communication ([changes-by-bhavi.md](changes-by-bhavi.md))
+## Setup
+
+```bash
+cp packages/server/.env.example packages/server/.env
+npm install
+npm run dev
+```
+
+Use the same `STARTUPFORGE_SERVICE_TOKEN` in both server environments and set
+`ORBIT_APPROVAL_TOKEN` before approving a build. Never commit either value.
+
+Historical hackathon notes remain in `ORBIT.md`, `progress.md`, and the
+`changes-by-*.md` files; they are not the current runtime architecture.

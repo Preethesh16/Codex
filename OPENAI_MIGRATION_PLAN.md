@@ -1,5 +1,14 @@
 # Orbit OpenAI Migration and Repository Delivery Plan
 
+## Implementation status — 2026-08-14
+
+The source migration, approval boundaries, durable build/media jobs, privacy
+gate, resumable Codex lifecycle, rollback, compatibility events, and offline
+fallback are implemented on `orbit-openai-migration`. All repository builds and
+offline tests pass. Live OpenAI image/video/voice, OAuth/YouTube, and browser
+end-to-end verification remain environment-gated because no API/OAuth
+credentials were supplied; no external publication or deployment was attempted.
+
 ## Repository and goal bootstrap
 
 - Preserve the original `origin` remote and publish migration work only to

@@ -67,6 +67,11 @@ GPT-5.6 Sol/Terra/Luna, GPT Image 2, Sora 2 with storyboard fallback, TTS-1, and
 GPT-4o Transcribe. Keep Google credentials only in MultiVideo for Google sign-in
 and YouTube OAuth.
 
+Set the same high-entropy `STARTUPFORGE_SERVICE_TOKEN` in the untracked Orbit
+and StartupForge server environments. Set `ORBIT_APPROVAL_TOKEN` in Orbit before
+approving a build handoff. A workflow produces a pending approval; only the
+authenticated approval endpoint can submit its privacy-minimized build job.
+
 ## Development notes
 
 - Keep provider-specific media code behind service boundaries because the Sora

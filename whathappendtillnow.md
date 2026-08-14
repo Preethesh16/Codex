@@ -216,6 +216,31 @@ verified commits only to `codex/orbit-openai-migration`.
   deployment, repository write, or publication was made.
 - Commit and push: pending milestone commit.
 
+### Change batch — migrated operator documentation
+
+- Replaced the component README's obsolete Gemma/Antigravity/OCR architecture
+  with the implemented Agents SDK, local privacy gate, and approval-backed
+  StartupForge handoff.
+- Documented the cross-service token and approval-token setup without including
+  any credential value.
+- Added a dated implementation-status section to the approved migration plan,
+  separating verified offline completion from credential-gated live checks.
+
+#### Files changed
+
+- `README.md`
+- `Orbit-main/README.md`
+- `startupforge/README.md`
+- `OPENAI_MIGRATION_PLAN.md`
+
+#### Verification and status
+
+- Prior full package builds and offline test suites remain green; this batch is
+  documentation-only.
+- Implementation milestone `e3f6669` was committed and pushed successfully to
+  `codex/orbit-openai-migration`.
+- Documentation commit and push: pending.
+
 ## 2026-08-14 18:33:59 IST — Start Orbit OpenAI migration
 
 ### Request summary
