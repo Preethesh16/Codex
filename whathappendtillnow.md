@@ -3,6 +3,184 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-14 18:54:37 IST — Continue completion audit
+
+### Request summary
+
+Continue the active Orbit OpenAI migration goal from current repository state.
+Audit every explicit plan requirement using authoritative evidence, implement
+remaining gaps, verify the complete scope, document each batch, and publish
+verified commits only to `codex/orbit-openai-migration`.
+
+### Current batch status
+
+- Confirmed the worktree began clean on `orbit-openai-migration` at `4c32aa6`.
+- Re-read repository instructions, the migration plan, and current official
+  OpenAI Agents, Codex SDK, image, and video documentation.
+- Started a requirement-by-requirement source and test coverage audit.
+- Files changed so far: this audit entry only.
+- Tests, commit, and push: pending audit findings.
+
+### Change batch — build-stage integrity and deployment approval
+
+- Removed StartupForge's automatic post-build deployment path. Even legacy
+  requests with `autoDeploy=true` now receive an approval-required event and
+  must use a separate explicit Deploy action.
+- Updated the client to remove the auto-deploy toggle and show the approval
+  boundary.
+- Split the Codex lifecycle into distinct no-write Planner, implementation,
+  no-write Critic, and repair turns on the resumable project thread.
+- Added real unified diff text against the pre-edit snapshot to build results.
+- Strengthened generated-project containment by rejecting symbolic-link path
+  components, closing an escape that lexical path checks did not cover.
+
+#### Files changed
+
+- `startupforge/server/src/services/antigravityService.ts`
+- `startupforge/server/src/index.ts`
+- `startupforge/server/test/codexBuildSafety.test.js`
+- `startupforge/client/src/pages/Dashboard.tsx`
+- `startupforge/client/src/hooks/useSocket.ts`
+
+#### Verification and status
+
+- StartupForge server TypeScript build: passed.
+- StartupForge safety tests: 3 passed, including a symlink-escape case.
+- StartupForge client TypeScript/Vite build: passed.
+- No Codex, deployment, GitHub, or publishing call was made.
+- Commit and push: pending additional completion-audit batches.
+
+### Change batch — StartupForge action authorization and token encryption
+
+- Added a server-enforced explicit-approval bit for deployment and GitHub
+  publishing socket actions. The client supplies it only from the corresponding
+  founder button action; missing/false approval is rejected before any external
+  operation.
+- Added AES-256-GCM encryption for StartupForge's stored GitHub OAuth/PAT value,
+  with a separate required server-side encryption key.
+- Added tests for rejected deploy/GitHub actions and encrypted credential round
+  trips.
+
+#### Files changed
+
+- `startupforge/server/src/services/actionApproval.ts`
+- `startupforge/server/src/services/credentialVault.ts`
+- `startupforge/server/src/db/database.ts`
+- `startupforge/server/src/index.ts`
+- `startupforge/server/.env.example`
+- `startupforge/server/test/approvalsAndCredentials.test.js`
+- `startupforge/client/src/hooks/useSocket.ts`
+
+#### Verification and status
+
+- StartupForge server build: passed.
+- StartupForge tests: 6 passed.
+- StartupForge client build: passed.
+- No deployment, GitHub, OAuth, or publishing call was made.
+- Commit and push: pending additional completion-audit batches.
+
+### Change batch — executable publishing approval proof
+
+- Extracted the external publishing executor behind a testable approval gate.
+- The executor now rejects any request that has not atomically transitioned to
+  `executing` with a decision timestamp before it can resolve an account or call
+  the YouTube adapter.
+- Added a negative test proving a pending approval produces zero upload calls
+  and zero platform-log mutations.
+
+#### Files changed
+
+- `MultiVideo/backend_create/services/approvedPublisher.js`
+- `MultiVideo/backend_create/routes/publishRoutes.js`
+- `MultiVideo/backend_create/test/publishingPolicy.test.js`
+
+#### Verification and status
+
+- MultiVideo tests: 4 passed.
+- Publishing route and approval executor syntax checks: passed.
+- No OAuth or publishing call was made.
+- Commit and push: pending additional completion-audit batches.
+
+### Change batch — runtime timeouts, usage, tool calls, and failure records
+
+- Added configurable per-run Agents SDK abort timeouts and made timeout/abort
+  failures eligible for bounded retry alongside transient HTTP errors.
+- Captured actual Agents SDK input/output/total-token usage and observed tool
+  calls for department and workflow runs.
+- Persisted usage/tool calls on completed `AgentRun` records and created a
+  normalized failed run record when orchestration fails.
+- Redacted normalized error messages before persistence or API responses.
+- Added retry and error-redaction coverage.
+
+#### Files changed
+
+- `Orbit-main/packages/server/src/openaiRuntime.ts`
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/packages/server/.env.example`
+- `Orbit-main/packages/server/test/openaiRuntime.test.mjs`
+
+#### Verification and status
+
+- Orbit server TypeScript build: passed.
+- Orbit server tests: 6 passed, including a transient-429 retry and sensitive
+  error-message redaction.
+- Commit and push: pending additional completion-audit batches.
+
+### Change batch — asynchronous media, image editing, and still fallback
+
+- Added the missing GPT Image edit endpoint with data-URL type/size validation,
+  persisted `image_edit` jobs, and generated-file persistence.
+- Converted ad-video generation into a true background `MediaJob`: the endpoint
+  returns HTTP 202 immediately, the client polls persisted state, and Sora may
+  run for up to five minutes without holding the request open.
+- On Sora failure, Orbit now attempts three GPT Image storyboard stills and
+  returns them with the storyboard. If image access/connectivity also fails, a
+  deterministic eight-second offline storyboard remains available.
+- Added media-job recovery on server restart so queued/running jobs become an
+  explicit retryable fallback instead of remaining stuck forever.
+- Extended the public `MediaJob` type with structured output and rendered
+  fallback stills in the Orbit client.
+
+#### Files changed
+
+- `Orbit-main/packages/core/src/types.ts`
+- `Orbit-main/packages/server/src/creative.ts`
+- `Orbit-main/packages/server/test/mediaFallback.test.mjs`
+- `Orbit-main/packages/client/src/App.tsx`
+
+#### Verification and status
+
+- Full Orbit monorepo build: passed.
+- Orbit server tests: 5 passed, including deterministic offline storyboard
+  duration/content.
+- Live image/video calls remain pending credentials; no external request ran.
+- Commit and push: pending additional completion-audit batches.
+
+### Change batch — durable StartupForge jobs and live event streaming
+
+- Replaced memory-only HTTP build jobs/events with SQLite `build_jobs` and
+  `build_events` tables. Status, result, error, and the latest 1,000 events per
+  job now survive process restarts.
+- Interrupted queued/running jobs are marked failed during restart rather than
+  being silently lost or incorrectly left running.
+- Changed the build-event endpoint into a real SSE stream: it replays persisted
+  events using `Last-Event-ID`/`after`, stays connected for live events, emits
+  heartbeats, and closes on a terminal job status.
+- Rollback and status endpoints now resolve jobs from durable storage.
+
+#### Files changed
+
+- `startupforge/server/src/db/database.ts`
+- `startupforge/server/src/index.ts`
+- `startupforge/server/test/buildJobStore.test.js`
+
+#### Verification and status
+
+- StartupForge server TypeScript build: passed.
+- StartupForge tests: 4 passed, including durable job/event persistence and
+  replay.
+- Commit and push: pending additional completion-audit batches.
+
 ## 2026-08-14 18:33:59 IST — Start Orbit OpenAI migration
 
 ### Request summary

@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { decryptCredential, encryptCredential } from '../services/credentialVault';
 
 const DB_PATH = path.join(process.cwd(), 'startupforge.db');
 export const db = new Database(DB_PATH);
@@ -115,7 +116,34 @@ db.exec(`
     access_token  TEXT DEFAULT '',
     connected_at  TEXT DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS build_jobs (
+    job_id        TEXT PRIMARY KEY,
+    build_id      INTEGER NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'queued',
+    project_path  TEXT NOT NULL,
+    result_json   TEXT DEFAULT '',
+    error         TEXT DEFAULT '',
+    created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (build_id) REFERENCES mvp_builds(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS build_events (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id        TEXT NOT NULL,
+    event_name    TEXT NOT NULL,
+    data_json     TEXT NOT NULL,
+    created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (job_id) REFERENCES build_jobs(job_id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_build_events_job_id ON build_events(job_id, id);
 `);
+
+// In-process Codex turns cannot be resumed automatically after a server crash.
+// Preserve the job and events, but mark interrupted work honestly as failed.
+db.prepare(`UPDATE build_jobs SET status = 'failed', error = 'Server restarted during build', updated_at = CURRENT_TIMESTAMP WHERE status IN ('queued', 'running')`).run();
 
 // ─── MIGRATIONS (best-effort ALTER TABLE for columns added after initial release) ──
 function tryAddColumn(table: string, columnDef: string) {
@@ -148,6 +176,35 @@ export function getLatestBuild(businessId: number) {
   return db.prepare('SELECT * FROM mvp_builds WHERE business_id = ? ORDER BY created_at DESC LIMIT 1').get(businessId);
 }
 
+export type BuildJobStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export function createBuildJob(data: { jobId: string; buildId: number; projectPath: string }) {
+  db.prepare(`INSERT INTO build_jobs (job_id, build_id, status, project_path) VALUES (?, ?, 'queued', ?)`)
+    .run(data.jobId, data.buildId, data.projectPath);
+}
+
+export function updateBuildJob(jobId: string, status: BuildJobStatus, result?: unknown, error = '') {
+  db.prepare(`UPDATE build_jobs SET status = ?, result_json = ?, error = ?, updated_at = CURRENT_TIMESTAMP WHERE job_id = ?`)
+    .run(status, result === undefined ? '' : JSON.stringify(result), error, jobId);
+}
+
+export function getBuildJob(jobId: string) {
+  return db.prepare('SELECT * FROM build_jobs WHERE job_id = ?').get(jobId) as any;
+}
+
+export function appendBuildEvent(jobId: string, event: string, data: unknown): number {
+  const result = db.prepare('INSERT INTO build_events (job_id, event_name, data_json) VALUES (?, ?, ?)')
+    .run(jobId, event, JSON.stringify(data));
+  db.prepare(`DELETE FROM build_events WHERE job_id = ? AND id NOT IN (SELECT id FROM build_events WHERE job_id = ? ORDER BY id DESC LIMIT 1000)`)
+    .run(jobId, jobId);
+  return Number(result.lastInsertRowid);
+}
+
+export function listBuildEvents(jobId: string, afterId = 0) {
+  return db.prepare('SELECT id, event_name, data_json, created_at FROM build_events WHERE job_id = ? AND id > ? ORDER BY id ASC')
+    .all(jobId, afterId) as Array<{ id: number; event_name: string; data_json: string; created_at: string }>;
+}
+
 // ─── FEEDBACK HELPERS ──────────────────────────────────────────────────────
 
 export function listFeedback() {
@@ -175,7 +232,9 @@ export function getFeedback(id: number) {
 // ─── GITHUB ACCOUNT HELPERS ─────────────────────────────────────────────────
 
 export function getGithubAccount() {
-  return db.prepare('SELECT * FROM github_accounts WHERE id = 1').get();
+  const account = db.prepare('SELECT * FROM github_accounts WHERE id = 1').get() as any;
+  if (!account) return account;
+  return { ...account, access_token: decryptCredential(account.access_token) };
 }
 
 export function saveGithubAccount(data: { username: string; avatarUrl: string; accessToken: string }) {
@@ -187,7 +246,7 @@ export function saveGithubAccount(data: { username: string; avatarUrl: string; a
       avatar_url = excluded.avatar_url,
       access_token = excluded.access_token,
       connected_at = CURRENT_TIMESTAMP
-  `).run(data.username, data.avatarUrl, data.accessToken);
+  `).run(data.username, data.avatarUrl, encryptCredential(data.accessToken));
 }
 
 export function clearGithubAccount() {

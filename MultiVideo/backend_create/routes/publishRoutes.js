@@ -4,6 +4,7 @@ const Account = require('../models/Account');
 const PublishApproval = require('../models/PublishApproval');
 const youtubeService = require('../services/youtubeService');
 const { normalizePublishRequest } = require('../services/publishingPolicy');
+const { executeApprovedPublish } = require('../services/approvedPublisher');
 
 module.exports = (app) => {
     // Agent/tool-facing request endpoint: this never publishes by itself.
@@ -65,30 +66,12 @@ module.exports = (app) => {
             return res.status(404).json({ error: 'Video not found' });
         }
 
-        const results = [];
-        for (const platform of approval.platforms) {
-            if (platform !== 'youtube') {
-                results.push({ platform, status: 'unavailable', message: `${platform} publishing is not implemented; no external call was made.` });
-                continue;
-            }
-            const account = await Account.findOne({ userId: req.user._id, platform: 'youtube' });
-            if (!account) {
-                results.push({ platform, status: 'failed', message: 'No connected YouTube account' });
-                continue;
-            }
-            try {
-                const result = await youtubeService.uploadVideo(account, {
-                    title: video.title,
-                    description: video.description,
-                    privacyStatus: approval.privacyStatus
-                }, video.filePath);
-                results.push({ platform, status: 'success', externalId: result.id });
-                video.platformLogs.push({ platform, status: 'success', externalId: result.id, publishedAt: new Date() });
-            } catch (error) {
-                results.push({ platform, status: 'failed', message: error.message });
-                video.platformLogs.push({ platform, status: 'failed', message: error.message });
-            }
-        }
+        const results = await executeApprovedPublish({
+            approval,
+            video,
+            getAccount: (platform) => Account.findOne({ userId: req.user._id, platform }),
+            uploadYouTube: (account, metadata, filePath) => youtubeService.uploadVideo(account, metadata, filePath)
+        });
 
         const successes = results.filter((item) => item.status === 'success').length;
         approval.status = successes ? 'completed' : 'failed';

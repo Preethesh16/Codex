@@ -4,7 +4,7 @@ import express from 'express';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { Agent, run } from '@openai/agents';
 import { z } from 'zod';
 import pptxgen from 'pptxgenjs';
@@ -77,8 +77,68 @@ async function storyboardFor(companyName: string, product: string) {
   return structured('Orbit Storyboard Director', 'Create a concise, producible product-ad storyboard.', `Brand: ${companyName}\nProduct: ${product}\nCreate a five-shot, eight-second total storyboard.`, StoryboardSchema);
 }
 
+export function offlineStoryboard(companyName: string) {
+  return { shots: [
+    { scene: 'Customer experiences the core problem', onScreenText: 'There is a better way', durationSec: 2 },
+    { scene: 'Product interface and brand reveal', onScreenText: companyName, durationSec: 2 },
+    { scene: 'Primary outcome demonstrated', onScreenText: 'Built for your workflow', durationSec: 2 },
+    { scene: 'Clear call to action', onScreenText: 'Learn more', durationSec: 2 },
+  ] };
+}
+
+async function generateStoryboardStills(companyName: string, product: string, storyboard: z.infer<typeof StoryboardSchema>): Promise<string[]> {
+  const selected = storyboard.shots.slice(0, 3);
+  const results = await Promise.all(selected.map((shot, index) => client().images.generate({
+    model: OPENAI_MODELS.image,
+    prompt: redactForOpenAI(`Storyboard still ${index + 1} for an advertisement by ${companyName}. Product: ${product}. Scene: ${shot.scene}. On-screen text: ${shot.onScreenText}. Cinematic commercial frame, legible typography, no unsupported claims.`),
+    size: '1536x1024', quality: 'medium', output_format: 'png',
+  })));
+  return results.flatMap((response) => response.data || []).flatMap((image) => image.b64_json
+    ? [saveGenerated(`storyboard-${uid()}.png`, Buffer.from(image.b64_json, 'base64'))]
+    : []);
+}
+
+async function processVideoJob(job: MediaJob, companyName: string, product: string, hooks: Hooks): Promise<void> {
+  updateMediaJob(job, { status: 'running' });
+  let storyboard: z.infer<typeof StoryboardSchema> = offlineStoryboard(companyName);
+  try { storyboard = await storyboardFor(companyName, product); } catch { /* offline storyboard remains */ }
+  const videoPrompt = job.prompt || `Eight-second modern product advertisement for ${companyName}: ${product}.`;
+  try {
+    let video = await client().videos.create({ model: OPENAI_MODELS.video, prompt: redactForOpenAI(videoPrompt), seconds: '8', size: '1280x720' });
+    updateMediaJob(job, { providerJobId: video.id, output: { storyboard: storyboard.shots } });
+    for (let attempt = 0; attempt < 60 && (video.status === 'queued' || video.status === 'in_progress'); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      video = await client().videos.retrieve(video.id);
+    }
+    if (video.status !== 'completed') throw new Error(video.error?.message || `Video remains ${video.status}`);
+    const content = await client().videos.downloadContent(video.id);
+    const url = saveGenerated(`ad-${uid()}.mp4`, Buffer.from(await content.arrayBuffer()));
+    updateMediaJob(job, { status: 'completed', outputPaths: [url], output: { video: url, storyboard: storyboard.shots, note: 'Sora video rendered' } });
+    hooks.logAgentAction('marketing', 'ADKIT_GENERATED', 'Sora video rendered');
+  } catch (error) {
+    const normalized = normalizeOpenAIError(error, job.traceId);
+    let stills: string[] = [];
+    try { stills = await generateStoryboardStills(companyName, product, storyboard); } catch { /* venue/offline mode */ }
+    updateMediaJob(job, {
+      status: 'fallback', kind: 'storyboard', error: normalized, outputPaths: stills,
+      output: { video: null, storyboard: storyboard.shots, stills, note: stills.length ? 'Sora unavailable — GPT Image storyboard stills provided' : 'Sora and GPT Image unavailable — offline storyboard provided' },
+    });
+    hooks.logAgentAction('marketing', 'ADKIT_FALLBACK', `Sora unavailable; storyboard supplied with ${stills.length} still(s)`);
+  }
+}
+
 export function registerCreative(app: Express, hooks: Hooks) {
   app.use('/generated', express.static(GEN_DIR));
+
+  for (const interrupted of readJsonArray<MediaJob>(MEDIA_INDEX_PATH).filter((job) => job.status === 'queued' || job.status === 'running')) {
+    const companyName = hooks.getContext(interrupted.workspaceId)?.companyName || 'Orbit';
+    const storyboard = offlineStoryboard(companyName);
+    updateMediaJob(interrupted, {
+      status: 'fallback', kind: 'storyboard', provider: 'local',
+      error: { code: 'server_restart', message: 'Media generation was interrupted by a server restart.', retryable: true },
+      output: { video: null, storyboard: storyboard.shots, stills: interrupted.outputPaths, note: 'Generation interrupted — offline storyboard recovered' },
+    });
+  }
 
   app.get('/api/media/jobs', (req, res) => {
     const workspaceId = String(req.query.workspaceId || 'default-workspace');
@@ -114,6 +174,34 @@ export function registerCreative(app: Express, hooks: Hooks) {
       const normalized = normalizeOpenAIError(error, job.traceId);
       updateMediaJob(job, { status: 'failed', error: normalized });
       res.status(502).json({ error: 'Image generation failed', jobId: job.id, detail: normalized });
+    }
+  });
+
+  app.post('/api/marketing/poster/edit', async (req, res) => {
+    const { image, prompt, workspaceId = 'default-workspace' } = req.body;
+    if (!image || !prompt) return res.status(400).json({ error: 'image data URL and prompt are required' });
+    const match = String(image).match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
+    if (!match) return res.status(400).json({ error: 'image must be a PNG, JPEG, or WebP data URL' });
+    const input = Buffer.from(match[2], 'base64');
+    if (!input.length || input.length > 20 * 1024 * 1024) return res.status(400).json({ error: 'image must be between 1 byte and 20 MB' });
+    const job = createMediaJob(workspaceId, 'image_edit', OPENAI_MODELS.image, prompt);
+    updateMediaJob(job, { status: 'running' });
+    try {
+      const response = await client().images.edit({
+        model: OPENAI_MODELS.image,
+        image: await toFile(input, match[1] === 'image/png' ? 'source.png' : match[1] === 'image/webp' ? 'source.webp' : 'source.jpg', { type: match[1] }),
+        prompt: redactForOpenAI(String(prompt)), size: '1024x1024', quality: 'medium', output_format: 'png',
+      });
+      const generated = (response.data || []).find((item) => item.b64_json)?.b64_json;
+      if (!generated) throw new Error('Image editing returned no image data');
+      const url = saveGenerated(`poster-edit-${uid()}.png`, Buffer.from(generated, 'base64'));
+      updateMediaJob(job, { status: 'completed', outputPaths: [url], output: { url } });
+      hooks.logAgentAction('marketing', 'POSTER_EDITED', 'OpenAI poster edit generated');
+      res.json({ url, jobId: job.id });
+    } catch (error) {
+      const normalized = normalizeOpenAIError(error, job.traceId);
+      updateMediaJob(job, { status: 'failed', error: normalized });
+      res.status(502).json({ error: 'Image editing failed', jobId: job.id, detail: normalized });
     }
   });
 
@@ -155,29 +243,10 @@ export function registerCreative(app: Express, hooks: Hooks) {
     const ctx = hooks.getContext(workspaceId);
     const videoPrompt = `Eight-second modern product advertisement for ${ctx.companyName}: ${product}. Cinematic, energetic, no unsupported claims.`;
     const job = createMediaJob(workspaceId, 'video', OPENAI_MODELS.video, videoPrompt);
-    updateMediaJob(job, { status: 'running' });
-    let storyboard: z.infer<typeof StoryboardSchema> = { shots: [] };
-    try { storyboard = await storyboardFor(ctx.companyName, product); } catch { /* deterministic fallback below */ }
-    if (!storyboard.shots.length) storyboard = { shots: [{ scene: 'Product problem', onScreenText: 'The pain', durationSec: 2 }, { scene: 'Product reveal', onScreenText: ctx.companyName, durationSec: 2 }, { scene: 'Primary benefit', onScreenText: 'Built for you', durationSec: 2 }, { scene: 'Call to action', onScreenText: 'Learn more', durationSec: 2 }] };
-    try {
-      let video = await client().videos.create({ model: OPENAI_MODELS.video, prompt: redactForOpenAI(videoPrompt), seconds: '8', size: '1280x720' });
-      updateMediaJob(job, { providerJobId: video.id });
-      for (let attempt = 0; attempt < 10 && (video.status === 'queued' || video.status === 'in_progress'); attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        video = await client().videos.retrieve(video.id);
-      }
-      if (video.status !== 'completed') throw new Error(video.error?.message || `Video remains ${video.status}`);
-      const content = await client().videos.downloadContent(video.id);
-      const url = saveGenerated(`ad-${uid()}.mp4`, Buffer.from(await content.arrayBuffer()));
-      updateMediaJob(job, { status: 'completed', outputPaths: [url] });
-      hooks.logAgentAction('marketing', 'ADKIT_GENERATED', 'Sora video rendered');
-      res.json({ video: url, storyboard: storyboard.shots, note: 'Sora video rendered', jobId: job.id });
-    } catch (error) {
-      const normalized = normalizeOpenAIError(error, job.traceId);
-      updateMediaJob(job, { status: 'fallback', model: OPENAI_MODELS.specialist, kind: 'storyboard', error: normalized });
-      hooks.logAgentAction('marketing', 'ADKIT_FALLBACK', 'Sora unavailable; storyboard supplied');
-      res.json({ video: null, storyboard: storyboard.shots, note: 'Sora unavailable or incomplete — storyboard fallback provided', jobId: job.id });
-    }
+    const initial = offlineStoryboard(ctx.companyName);
+    updateMediaJob(job, { output: { video: null, storyboard: initial.shots, stills: [], note: 'Sora job queued' } });
+    res.status(202).json({ video: null, storyboard: initial.shots, stills: [], note: 'Sora job queued', jobId: job.id, status: job.status });
+    void processVideoJob(job, ctx.companyName, product, hooks);
   });
 
   app.post('/api/deck/generate', async (req, res) => {

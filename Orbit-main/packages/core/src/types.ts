@@ -187,6 +187,7 @@ export interface MediaJob {
   prompt?: string;
   providerJobId?: string;
   outputPaths: string[];
+  output?: unknown;
   traceId: string;
   usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
   error?: { code: string; message: string; retryable: boolean };

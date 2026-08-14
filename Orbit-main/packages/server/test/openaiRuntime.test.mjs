@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FinancePlanSchema, ORBIT_WORKFLOW_STAGES, OPENAI_MODELS, applyValidatedContextPatch, redactForOpenAI } from '../dist/openaiRuntime.js';
+import { FinancePlanSchema, ORBIT_WORKFLOW_STAGES, OPENAI_MODELS, applyValidatedContextPatch, normalizeOpenAIError, redactForOpenAI, withRetry } from '../dist/openaiRuntime.js';
 
 test('privacy gate redacts credentials and common personal identifiers', () => {
   const value = redactForOpenAI('email founder@example.com phone +91 9876543210 api_key=sk-exampleabcdefghijklmnop PAN ABCDE1234F');
@@ -30,4 +30,17 @@ test('workflow stages and model routing match the approved architecture', () => 
   assert.equal(OPENAI_MODELS.manager, 'gpt-5.6-sol');
   assert.equal(OPENAI_MODELS.specialist, 'gpt-5.6-terra');
   assert.equal(OPENAI_MODELS.fast, 'gpt-5.6-luna');
+});
+
+test('transient OpenAI errors retry while normalized errors redact secrets', async () => {
+  let attempts = 0;
+  const value = await withRetry(async () => {
+    attempts += 1;
+    if (attempts < 3) throw Object.assign(new Error('temporary'), { status: 429 });
+    return 'ok';
+  });
+  assert.equal(value, 'ok');
+  assert.equal(attempts, 3);
+  const normalized = normalizeOpenAIError(new Error('token=sk-exampleabcdefghijklmnop'), 'trace-test');
+  assert.doesNotMatch(normalized.message, /sk-example/);
 });

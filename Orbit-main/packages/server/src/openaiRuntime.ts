@@ -37,12 +37,12 @@ export function redactForOpenAI(value: string): string {
 }
 
 export function normalizeOpenAIError(error: unknown, traceId: string): NormalizedOpenAIError {
-  const candidate = error as { status?: number; code?: string; message?: string };
+  const candidate = error as { status?: number; code?: string; message?: string; name?: string };
   const status = candidate?.status;
   return {
     code: candidate?.code || (status ? `http_${status}` : 'openai_error'),
-    message: candidate?.message || 'The OpenAI request failed.',
-    retryable: status === 408 || status === 409 || status === 429 || (typeof status === 'number' && status >= 500),
+    message: redactForOpenAI(candidate?.message || 'The OpenAI request failed.'),
+    retryable: candidate?.name === 'AbortError' || candidate?.name === 'TimeoutError' || status === 408 || status === 409 || status === 429 || (typeof status === 'number' && status >= 500),
     traceId,
   };
 }
@@ -92,19 +92,40 @@ export const orbitManagerAgent = new Agent({
   tools: managerTools,
 });
 
-async function withRetry<T>(operation: () => Promise<T>, attempts = 3): Promise<T> {
+export async function withRetry<T>(operation: () => Promise<T>, attempts = 3): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       return await operation();
     } catch (error) {
       lastError = error;
-      const status = (error as { status?: number })?.status;
-      if (attempt === attempts || ![408, 409, 429, 500, 502, 503, 504].includes(status || 0)) throw error;
+      const candidate = error as { status?: number; name?: string };
+      const retryable = candidate.name === 'AbortError' || candidate.name === 'TimeoutError' || [408, 409, 429, 500, 502, 503, 504].includes(candidate.status || 0);
+      if (attempt === attempts || !retryable) throw error;
       await new Promise((resolve) => setTimeout(resolve, 250 * (2 ** (attempt - 1))));
     }
   }
   throw lastError;
+}
+
+function runTimeoutSignal(): AbortSignal {
+  const configured = Number(process.env.OPENAI_RUN_TIMEOUT_MS || 90_000);
+  return AbortSignal.timeout(Number.isFinite(configured) && configured > 0 ? configured : 90_000);
+}
+
+function usageOf(result: { state: { usage: { inputTokens: number; outputTokens: number; totalTokens: number } } }) {
+  return {
+    inputTokens: result.state.usage.inputTokens,
+    outputTokens: result.state.usage.outputTokens,
+    totalTokens: result.state.usage.totalTokens,
+  };
+}
+
+function toolCallsOf(result: { newItems: unknown[] }): Array<{ name: string; status: 'completed' }> {
+  return result.newItems.flatMap((item: any) => {
+    const name = item?.rawItem?.name || item?.rawItem?.tool_name || item?.tool?.name;
+    return name ? [{ name: String(name), status: 'completed' as const }] : [];
+  });
 }
 
 export async function runDepartmentAgent(input: {
@@ -113,12 +134,12 @@ export async function runDepartmentAgent(input: {
   chatHistory?: string;
   context: StartupContext;
   sharedContext: string;
-}): Promise<{ output: string; traceId: string }> {
+}): Promise<{ output: string; traceId: string; usage: ReturnType<typeof usageOf>; toolCalls: ReturnType<typeof toolCallsOf> }> {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured');
   const traceId = crypto.randomUUID();
   const prompt = redactForOpenAI(`${contextPrompt(input.context, input.sharedContext)}\n\nConversation:\n${input.chatHistory || '(none)'}\n\nFounder request:\n${input.message}`);
-  const result = await withRetry(() => run(specialistAgents[input.department], prompt, { maxTurns: 8 }));
-  return { output: String(result.finalOutput || '').trim(), traceId };
+  const result = await withRetry(() => run(specialistAgents[input.department], prompt, { maxTurns: 8, signal: runTimeoutSignal() }));
+  return { output: String(result.finalOutput || '').trim(), traceId, usage: usageOf(result), toolCalls: toolCallsOf(result) };
 }
 
 export const FinancePlanSchema = z.object({
@@ -170,23 +191,26 @@ function workflowAgent(department: OrbitDepartment) {
   });
 }
 
-async function workflowRun(department: OrbitDepartment, objective: string, context: StartupContext, prior: string): Promise<WorkflowOutput> {
-  const result = await withRetry(() => run(workflowAgent(department), redactForOpenAI(`${contextPrompt(context, prior)}\n\nObjective: ${objective}`), { maxTurns: 10 }));
-  return WorkflowOutputSchema.parse(result.finalOutput);
+type WorkflowRun = { output: WorkflowOutput; traceId: string; usage: ReturnType<typeof usageOf>; toolCalls: ReturnType<typeof toolCallsOf> };
+
+async function workflowRun(department: OrbitDepartment, objective: string, context: StartupContext, prior: string): Promise<WorkflowRun> {
+  const traceId = crypto.randomUUID();
+  const result = await withRetry(() => run(workflowAgent(department), redactForOpenAI(`${contextPrompt(context, prior)}\n\nObjective: ${objective}`), { maxTurns: 10, signal: runTimeoutSignal() }));
+  return { output: WorkflowOutputSchema.parse(result.finalOutput), traceId, usage: usageOf(result), toolCalls: toolCallsOf(result) };
 }
 
-export async function runOrbitWorkflow(objective: string, context: StartupContext): Promise<Array<{ department: OrbitDepartment; output: WorkflowOutput }>> {
+export async function runOrbitWorkflow(objective: string, context: StartupContext): Promise<Array<{ department: OrbitDepartment } & WorkflowRun>> {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured');
-  const results: Array<{ department: OrbitDepartment; output: WorkflowOutput }> = [];
+  const results: Array<{ department: OrbitDepartment } & WorkflowRun> = [];
   const research = await workflowRun('research', objective, context, 'Research runs first.');
-  results.push({ department: 'research', output: research });
-  const researchSummary = JSON.stringify(research);
-  const parallel = await Promise.all((['finance', 'legal', 'brand'] as OrbitDepartment[]).map(async (department) => ({ department, output: await workflowRun(department, objective, context, researchSummary) })));
+  results.push({ department: 'research', ...research });
+  const researchSummary = JSON.stringify(research.output);
+  const parallel = await Promise.all((['finance', 'legal', 'brand'] as OrbitDepartment[]).map(async (department) => ({ department, ...await workflowRun(department, objective, context, researchSummary) })));
   results.push(...parallel);
   const conflict = await workflowRun('conflict', objective, context, JSON.stringify(parallel.map(({ department, output }) => ({ department, output }))));
-  results.push({ department: 'conflict', output: conflict });
+  results.push({ department: 'conflict', ...conflict });
   const finalPrior = JSON.stringify({ research, parallel, conflict });
-  const delivery = await Promise.all((['marketing', 'code', 'sales'] as OrbitDepartment[]).map(async (department) => ({ department, output: await workflowRun(department, objective, context, finalPrior) })));
+  const delivery = await Promise.all((['marketing', 'code', 'sales'] as OrbitDepartment[]).map(async (department) => ({ department, ...await workflowRun(department, objective, context, finalPrior) })));
   results.push(...delivery);
   return results;
 }
@@ -209,6 +233,6 @@ export async function refineFinancePlan(message: string, context: StartupContext
     instructions: 'Return a feasible revised startup budget based only on the supplied context and founder request. Budget allocation percentages must sum to 100.',
     outputType: FinancePlanSchema,
   });
-  const result = await withRetry(() => run(structuredAgent, redactForOpenAI(`${contextPrompt(context, '')}\n\nRequest: ${message}`)));
+  const result = await withRetry(() => run(structuredAgent, redactForOpenAI(`${contextPrompt(context, '')}\n\nRequest: ${message}`), { signal: runTimeoutSignal() }));
   return FinancePlanSchema.parse(result.finalOutput);
 }

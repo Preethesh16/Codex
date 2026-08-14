@@ -78,6 +78,7 @@ export function useSocket() {
       addEvent('error', message);
       setIsBuilding(false);
     });
+    socket.on('approval:required', ({ message }) => addEvent('approval', message));
 
     // ─── Feedback / Fix Center events ────────────────────────────────────────
     socket.on('feedback:updated', ({ item }) => {
@@ -133,7 +134,7 @@ export function useSocket() {
   };
 
   const triggerDeploy = (data: { projectPath: string; buildId: number }) => {
-    socketInstance?.emit('deploy:start', data);
+    socketInstance?.emit('deploy:start', { ...data, approved: true });
   };
 
   const fixFeedback = (data: { feedbackId: number; businessId?: number; projectPath?: string }) => {
@@ -150,7 +151,7 @@ export function useSocket() {
   };
 
   const publishToGithub = (data: { projectPath: string; repoName: string; isPrivate?: boolean; buildId?: number }) => {
-    socketInstance?.emit('github:publish', data);
+    socketInstance?.emit('github:publish', { ...data, approved: true });
   };
 
   return {

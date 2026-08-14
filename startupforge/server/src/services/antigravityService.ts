@@ -25,6 +25,7 @@ export interface BuildResult {
   snapshotId?: string;
   threadId?: string;
   diff?: Array<{ path: string; kind: string }>;
+  diffText?: string;
   buildOutput?: string;
   error?: string;
 }
@@ -54,6 +55,15 @@ export function validateProjectPath(candidate: string): string {
   const root = generatedProjectsRoot();
   if (resolved === root) throw new Error('Project root-level writes are not allowed.');
   if (!resolved.startsWith(root + path.sep)) throw new Error('Project path must be inside the configured generated MVP directory.');
+  fs.mkdirSync(root, { recursive: true });
+  const segments = path.relative(root, resolved).split(path.sep);
+  let cursor = root;
+  for (const segment of segments) {
+    cursor = path.join(cursor, segment);
+    if (fs.existsSync(cursor) && fs.lstatSync(cursor).isSymbolicLink()) {
+      throw new Error('Symbolic links are not allowed in generated project paths.');
+    }
+  }
   return resolved;
 }
 
@@ -124,14 +134,17 @@ async function openThread(projectPath: string): Promise<Thread> {
   return existing ? client.resumeThread(existing, options) : client.startThread(options);
 }
 
-async function streamTurn(thread: Thread, prompt: string, options: BuildOptions, files: Map<string, string>): Promise<void> {
+async function streamTurn(thread: Thread, prompt: string, options: BuildOptions, files: Map<string, string>): Promise<string> {
   const streamed = await thread.runStreamed(prompt);
+  const messages: string[] = [];
   for await (const event of streamed.events) {
     handleEvent(event, options, files);
+    if (event.type === 'item.completed' && event.item.type === 'agent_message') messages.push(event.item.text);
     if (event.type === 'thread.started') saveThreadId(validateProjectPath(options.projectPath), event.thread_id);
     if (event.type === 'turn.failed') throw new Error(event.error.message);
     if (event.type === 'error') throw new Error(event.message);
   }
+  return messages.join('\n').trim();
 }
 
 function handleEvent(event: ThreadEvent, options: BuildOptions, files: Map<string, string>): void {
@@ -162,15 +175,26 @@ async function verifyBuild(projectPath: string): Promise<string> {
 }
 
 function implementationPrompt(context: string, command: string, existing: boolean): string {
-  return `You are the implementation stage in StartupForge's Planner → Codex → Critic → Codex repair workflow.
+  return `You are the Codex implementation stage in StartupForge's Planner → implementation → Critic → repair workflow.
 
-First make a short internal plan, then ${existing ? 'inspect and modify the existing project' : 'create the complete MVP'} directly in the current working directory. Use filesystem tools; do not print pseudo file delimiters. Never access paths outside the working directory. Do not publish, deploy, spend money, or write to GitHub. Implement a polished, responsive, runnable MVP and run appropriate local checks.
+${existing ? 'Inspect and modify the existing project' : 'Create the complete MVP'} directly in the current working directory, following the approved plan below. Use filesystem tools; do not print pseudo file delimiters. Never access paths outside the working directory. Do not publish, deploy, spend money, or write to GitHub. Implement a polished, responsive, runnable MVP and run appropriate local checks.
 
 BUSINESS CONTEXT (already privacy-filtered):
 ${context.slice(0, 24_000)}
 
 APPROVED OBJECTIVE:
 ${command.slice(0, 8_000)}`;
+}
+
+async function diffFromSnapshot(projectPath: string, snapshotId: string): Promise<string> {
+  const snapshot = path.join(snapshotsRoot(projectPath), snapshotId);
+  try {
+    const result = await execFileAsync('git', ['diff', '--no-index', '--no-ext-diff', '--', snapshot, projectPath], { timeout: 30_000, maxBuffer: 2 * 1024 * 1024 });
+    return result.stdout.slice(0, 250_000);
+  } catch (error: any) {
+    if (error.code === 1 && typeof error.stdout === 'string') return error.stdout.slice(0, 250_000);
+    return `Diff unavailable: ${error.message}`;
+  }
 }
 
 async function executeBuild(options: BuildOptions, followUp: boolean): Promise<BuildResult> {
@@ -182,20 +206,29 @@ async function executeBuild(options: BuildOptions, followUp: boolean): Promise<B
   emit(options.socket, 'codex:model', { model: process.env.CODEX_MODEL || 'gpt-5.6-sol', agent: 'Codex', buildId: options.buildId });
   try {
     const thread = await openThread(projectPath);
-    await streamTurn(thread, implementationPrompt(options.businessContext, options.command, followUp), options, files);
+    const plannerFiles = new Map<string, string>();
+    const plan = await streamTurn(thread, `Act only as the Planner. Inspect the current project and produce a concrete implementation plan for the objective and privacy-filtered context below. Do not create, edit, rename, or delete any file. Do not deploy or publish.\n\nCONTEXT:\n${options.businessContext.slice(0, 24_000)}\n\nOBJECTIVE:\n${options.command.slice(0, 8_000)}`, options, plannerFiles);
+    if (plannerFiles.size) throw new Error('Planner stage attempted to modify files. Build stopped before implementation.');
+    options.socket.emit('codex:stage', { stage: 'planner', status: 'completed', plan, buildId: options.buildId });
+    await streamTurn(thread, `${implementationPrompt(options.businessContext, options.command, followUp)}\n\nAPPROVED PLAN:\n${plan}`, options, files);
     let buildOutput = '';
     try {
       buildOutput = await verifyBuild(projectPath);
     } catch (error: any) {
       buildOutput = `${error.stdout || ''}\n${error.stderr || error.message}`.slice(-8000);
     }
-    await streamTurn(thread, `Act as the Critic. Inspect the current diff and this build output, identify defects, then act as the repair stage: fix every reproducible issue in the working directory and rerun relevant checks. Do not publish or deploy.\n\nBUILD OUTPUT:\n${buildOutput}`, options, files);
+    const criticFiles = new Map<string, string>();
+    const critique = await streamTurn(thread, `Act only as the Critic. Inspect the implementation, current diff, and build output. Return a precise defect list with reproduction evidence. Do not modify any file and do not publish or deploy.\n\nBUILD OUTPUT:\n${buildOutput}`, options, criticFiles);
+    if (criticFiles.size) throw new Error('Critic stage attempted to modify files. Build stopped before repair.');
+    options.socket.emit('codex:stage', { stage: 'critic', status: 'completed', critique, buildId: options.buildId });
+    await streamTurn(thread, `Act as the Codex repair stage. Fix every reproducible defect in the Critic report, keep changes inside the working directory, and rerun relevant checks. Do not publish or deploy.\n\nCRITIC REPORT:\n${critique}\n\nBUILD OUTPUT:\n${buildOutput}`, options, files);
     buildOutput = await verifyBuild(projectPath).catch((error: any) => `${error.stdout || ''}\n${error.stderr || error.message}`.slice(-8000));
     const filesCreated = [...files.keys()];
     const threadId = thread.id || loadThreadId(projectPath);
     const payload = { filesCreated, projectPath, totalFiles: filesCreated.length, buildId: options.buildId, snapshotId, threadId, message: `Codex build complete: ${filesCreated.length} changed file(s).` };
     emit(options.socket, 'codex:complete', payload);
-    return { success: true, filesCreated, projectPath, snapshotId, threadId, diff: [...files].map(([filePath, kind]) => ({ path: filePath, kind })), buildOutput };
+    const diffText = await diffFromSnapshot(projectPath, snapshotId);
+    return { success: true, filesCreated, projectPath, snapshotId, threadId, diff: [...files].map(([filePath, kind]) => ({ path: filePath, kind })), diffText, buildOutput };
   } catch (error: any) {
     const message = error?.message || 'Codex build failed';
     emit(options.socket, 'codex:error', { message, buildId: options.buildId, snapshotId });

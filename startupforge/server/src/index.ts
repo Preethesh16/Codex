@@ -8,7 +8,10 @@ import fs from 'fs';
 
 dotenv.config();
 
-import { db, listFeedback, getFeedback } from './db/database';
+import {
+  db, listFeedback, getFeedback, createBuildJob, updateBuildJob, getBuildJob,
+  appendBuildEvent, listBuildEvents, type BuildJobStatus,
+} from './db/database';
 import {
   getGithubAccount, saveGithubAccount, clearGithubAccount, listProjects
 } from './db/database';
@@ -24,6 +27,7 @@ import {
 } from './services/githubService';
 import crypto from 'crypto';
 import OpenAI, { toFile } from 'openai';
+import { requireExplicitApproval } from './services/actionApproval';
 
 const app = express();
 const httpServer = createServer(app);
@@ -55,28 +59,33 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'startupforge', builder: 'codex-sdk' });
 });
 
-type HttpBuildJob = {
-  id: string;
-  buildId: number;
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  projectPath: string;
-  events: Array<{ id: number; event: string; data: unknown }>;
-  result?: unknown;
-  error?: string;
-};
-
-const httpBuildJobs = new Map<string, HttpBuildJob>();
+const buildEventSubscribers = new Map<string, Set<express.Response>>();
 
 function emitContext(sink: EventSink, phase: 'start' | 'progress' | 'complete', payload: Record<string, unknown>): void {
   sink.emit(`context:${phase}`, payload);
   sink.emit(`gemma:${phase}`, payload); // temporary client compatibility alias
 }
 
-function jobSink(job: HttpBuildJob): EventSink {
+function writeSse(response: express.Response, id: number | undefined, event: string, data: unknown): void {
+  if (id !== undefined) response.write(`id: ${id}\n`);
+  response.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+function broadcastJobStatus(jobId: string, status: BuildJobStatus, error = ''): void {
+  const subscribers = buildEventSubscribers.get(jobId);
+  if (!subscribers) return;
+  for (const response of subscribers) {
+    writeSse(response, undefined, 'job:status', { status, error });
+    if (status === 'completed' || status === 'failed') response.end();
+  }
+  if (status === 'completed' || status === 'failed') buildEventSubscribers.delete(jobId);
+}
+
+function jobSink(jobId: string): EventSink {
   return {
     emit(event, data) {
-      job.events.push({ id: job.events.length + 1, event, data });
-      if (job.events.length > 500) job.events.shift();
+      const id = appendBuildEvent(jobId, event, data);
+      for (const response of buildEventSubscribers.get(jobId) || []) writeSse(response, id, event, data);
     }
   };
 }
@@ -94,53 +103,72 @@ app.post('/api/builds', rateLimit(10, 60_000), async (req, res) => {
   }
   const buildRow = db.prepare(`INSERT INTO mvp_builds (business_id, status, command_used, project_path) VALUES (?, 'running', ?, ?)`)
     .run(businessId, command, projectPath);
-  const job: HttpBuildJob = { id: crypto.randomUUID(), buildId: Number(buildRow.lastInsertRowid), status: 'queued', projectPath, events: [] };
-  httpBuildJobs.set(job.id, job);
-  res.status(202).json({ jobId: job.id, buildId: job.buildId, status: job.status, projectPath });
+  const jobId = crypto.randomUUID();
+  const buildId = Number(buildRow.lastInsertRowid);
+  createBuildJob({ jobId, buildId, projectPath });
+  res.status(202).json({ jobId, buildId, status: 'queued', projectPath });
   void (async () => {
-    job.status = 'running';
+    updateBuildJob(jobId, 'running');
+    broadcastJobStatus(jobId, 'running');
     try {
       const context = await compileBusinessContext(businessId);
-      const result = await runCodexBuild({ businessContext: context, command, projectPath, socket: jobSink(job), buildId: job.buildId });
-      job.result = result;
-      job.status = result.success ? 'completed' : 'failed';
-      job.error = result.error;
+      const result = await runCodexBuild({ businessContext: context, command, projectPath, socket: jobSink(jobId), buildId });
+      const status: BuildJobStatus = result.success ? 'completed' : 'failed';
+      updateBuildJob(jobId, status, result, result.error || '');
+      broadcastJobStatus(jobId, status, result.error || '');
       db.prepare('UPDATE mvp_builds SET status = ?, files_created = ? WHERE id = ?')
-        .run(result.success ? 'built' : 'failed', JSON.stringify(result.filesCreated), job.buildId);
+        .run(result.success ? 'built' : 'failed', JSON.stringify(result.filesCreated), buildId);
     } catch (error: any) {
-      job.status = 'failed';
-      job.error = error.message;
-      db.prepare('UPDATE mvp_builds SET status = ? WHERE id = ?').run('failed', job.buildId);
+      updateBuildJob(jobId, 'failed', undefined, error.message);
+      broadcastJobStatus(jobId, 'failed', error.message);
+      db.prepare('UPDATE mvp_builds SET status = ? WHERE id = ?').run('failed', buildId);
     }
   })();
 });
 
 app.get('/api/builds/:jobId', (req, res) => {
-  const job = httpBuildJobs.get(req.params.jobId);
+  const job = getBuildJob(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'build job not found' });
-  res.json({ ...job, events: undefined });
+  res.json({
+    jobId: job.job_id, buildId: job.build_id, status: job.status,
+    projectPath: job.project_path, result: job.result_json ? JSON.parse(job.result_json) : undefined,
+    error: job.error || undefined, createdAt: job.created_at, updatedAt: job.updated_at,
+  });
 });
 
 app.get('/api/builds/:jobId/events', (req, res) => {
-  const job = httpBuildJobs.get(req.params.jobId);
+  const jobId = req.params.jobId;
+  const job = getBuildJob(jobId);
   if (!job) return res.status(404).json({ error: 'build job not found' });
-  const after = Number(req.query.after || 0);
+  const headerId = req.headers['last-event-id'];
+  const after = Number(req.query.after || (Array.isArray(headerId) ? headerId[0] : headerId) || 0);
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
-  for (const event of job.events.filter((item) => item.id > after)) {
-    res.write(`id: ${event.id}\nevent: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`);
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  for (const event of listBuildEvents(jobId, after)) {
+    writeSse(res, event.id, event.event_name, JSON.parse(event.data_json));
   }
-  res.write(`event: job:status\ndata: ${JSON.stringify({ status: job.status, error: job.error })}\n\n`);
-  res.end();
+  writeSse(res, undefined, 'job:status', { status: job.status, error: job.error || undefined });
+  if (job.status === 'completed' || job.status === 'failed') return res.end();
+  const subscribers = buildEventSubscribers.get(jobId) || new Set<express.Response>();
+  subscribers.add(res);
+  buildEventSubscribers.set(jobId, subscribers);
+  const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 15_000);
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    subscribers.delete(res);
+    if (!subscribers.size) buildEventSubscribers.delete(jobId);
+  });
 });
 
 app.post('/api/builds/:jobId/rollback', (req, res) => {
-  const job = httpBuildJobs.get(req.params.jobId);
+  const job = getBuildJob(req.params.jobId);
   const snapshotId = String(req.body.snapshotId || '');
   if (!job) return res.status(404).json({ error: 'build job not found' });
   try {
-    rollbackSnapshot(job.projectPath, snapshotId);
-    res.json({ success: true, projectPath: job.projectPath, snapshotId });
+    rollbackSnapshot(job.project_path, snapshotId);
+    res.json({ success: true, projectPath: job.project_path, snapshotId });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -511,29 +539,13 @@ io.on('connection', (socket) => {
         WHERE id = ?
       `).run(JSON.stringify(buildOutput.filesCreated), buildId);
 
-      // STEP 4: Auto-deploy if requested
-      if (autoDeploy) {
-        const { url, isLocal } = await deployMVP(projectPath, socket);
-
-        db.prepare('UPDATE mvp_builds SET status = ?, deploy_url = ? WHERE id = ?')
-          .run('deployed', url, buildId);
-
-        socket.emit('build:done', {
-          buildId,
-          projectPath,
-          deployUrl: url,
-          isLocal,
-          filesCreated: buildOutput.filesCreated,
-          message: `🚀 MVP complete! ${isLocal ? 'Running at' : 'Live at'}: ${url}`
-        });
-      } else {
-        socket.emit('build:done', {
-          buildId,
-          projectPath,
-          filesCreated: buildOutput.filesCreated,
-          message: `✅ Files written to ${projectPath}. Click Deploy to launch.`
-        });
-      }
+      if (autoDeploy) socket.emit('approval:required', { buildId, action: 'deploy', message: 'Auto-deploy is disabled. Review the build and click Deploy explicitly.' });
+      socket.emit('build:done', {
+        buildId,
+        projectPath,
+        filesCreated: buildOutput.filesCreated,
+        message: `✅ Files written to ${projectPath}. Review the diff, then click Deploy to approve launch.`
+      });
 
     } catch (error: any) {
       console.error('Build pipeline error:', error);
@@ -606,8 +618,9 @@ io.on('connection', (socket) => {
   /**
    * Deploy an already-built project
    */
-  socket.on('deploy:start', async (data: { projectPath: string; buildId: number }) => {
+  socket.on('deploy:start', async (data: { projectPath: string; buildId: number; approved?: boolean }) => {
     try {
+      requireExplicitApproval('Deployment', data.approved);
       const { url, isLocal } = await deployMVP(data.projectPath, socket);
       db.prepare('UPDATE mvp_builds SET status = ?, deploy_url = ? WHERE id = ?')
         .run('deployed', url, data.buildId);
@@ -745,7 +758,14 @@ io.on('connection', (socket) => {
     repoName: string;
     isPrivate?: boolean;
     buildId?: number;
+    approved?: boolean;
   }) => {
+    try {
+      requireExplicitApproval('GitHub publishing', data.approved);
+    } catch (error: any) {
+      socket.emit('github:error', { message: error.message });
+      return;
+    }
     const account = getGithubAccount() as any;
     if (!account) {
       socket.emit('github:error', { message: 'Connect your GitHub account first.' });

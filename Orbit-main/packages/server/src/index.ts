@@ -438,8 +438,7 @@ async function runAgentWorkflow(workspaceId: string, objective: string): Promise
   for (const taskId of Object.values(departmentTask)) updateTaskStatus.run('inprogress', started, null, taskId, workspaceId);
   try {
     const results = await runOrbitWorkflow(objective, context);
-    for (const { department, output } of results) {
-      const traceId = crypto.randomUUID();
+    for (const { department, output, traceId, usage, toolCalls } of results) {
       applyValidatedContextPatch(context, output.contextPatch);
       const taskId = departmentTask[department];
       const completedAt = new Date().toISOString();
@@ -453,7 +452,7 @@ async function runAgentWorkflow(workspaceId: string, objective: string): Promise
       );
       saveAgentRun({
         id: crypto.randomUUID(), workspaceId, agent: department, status: 'completed', traceId,
-        citations: output.citations, toolCalls: [], approvalIds: [], output,
+        citations: output.citations, toolCalls, approvalIds: [], usage, output,
         createdAt: started, completedAt,
       });
       saveContext(workspaceId, context);
@@ -470,8 +469,15 @@ async function runAgentWorkflow(workspaceId: string, objective: string): Promise
     context.technical.buildLogs = ['Build specification ready. Human approval is required to start StartupForge/Codex.'];
     saveContext(workspaceId, context);
   } catch (error) {
+    const traceId = crypto.randomUUID();
     for (const taskId of Object.values(departmentTask)) updateTaskStatus.run('failed', started, new Date().toISOString(), taskId, workspaceId);
-    log.run(`msg-run-${crypto.randomUUID()}`, 'operations', 'founder', 'AGENT_RUN_FAILED', JSON.stringify({ error: normalizeOpenAIError(error, crypto.randomUUID()) }));
+    const normalized = normalizeOpenAIError(error, traceId);
+    saveAgentRun({
+      id: crypto.randomUUID(), workspaceId, agent: 'operations', status: 'failed', traceId,
+      citations: [], toolCalls: [], approvalIds: [], error: normalized, createdAt: started,
+      completedAt: new Date().toISOString(),
+    });
+    log.run(`msg-run-${crypto.randomUUID()}`, 'operations', 'founder', 'AGENT_RUN_FAILED', JSON.stringify({ error: normalized }));
     throw error;
   }
 }

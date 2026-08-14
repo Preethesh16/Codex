@@ -44,6 +44,7 @@ const EVENT_ICONS: Record<string, IconType> = {
   github: IconGithub,
   done: IconCheckCircle,
   error: IconX,
+  approval: IconShield,
   complete: IconCheckCircle,
 };
 
@@ -66,7 +67,6 @@ export default function Dashboard() {
   const [customCommand, setCustomCommand] = useState('');
   const [compiledContext, setCompiledContext] = useState('');
   const [showContext, setShowContext] = useState(false);
-  const [autoDeploy, setAutoDeploy] = useState(true);
   const [github, setGithub] = useState<{ connected: boolean; username: string | null; oauthConfigured: boolean }>({
     connected: false, username: null, oauthConfigured: false
   });
@@ -140,7 +140,7 @@ export default function Dashboard() {
       sendFollowUp({ businessId, command: cmd, projectPath: lastProjectPath });
     } else {
       // First build
-      sendBuildCommand({ businessId, command: cmd, autoDeploy });
+      sendBuildCommand({ businessId, command: cmd, autoDeploy: false });
     }
   };
 
@@ -230,16 +230,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Auto-deploy toggle */}
+          {/* Deployment always requires a separate founder action. */}
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--line)' }}>
-            <span className="text-[12.5px]" style={{ color: 'var(--text-2)' }}>Auto-deploy after build</span>
-            <button
-              onClick={() => setAutoDeploy(!autoDeploy)}
-              className="w-9 h-5 rounded-full transition-all relative"
-              style={{ background: autoDeploy ? 'var(--accent-dim)' : 'var(--bg-3)' }}
-            >
-              <span className="absolute top-0.5 w-4 h-4 rounded-full transition-all" style={{ background: '#fff', left: autoDeploy ? '18px' : '2px' }} />
-            </button>
+            <span className="text-[12.5px]" style={{ color: 'var(--text-2)' }}>Deploy only after explicit approval</span>
+            <IconShield size={15} />
           </div>
 
           {/* GitHub */}

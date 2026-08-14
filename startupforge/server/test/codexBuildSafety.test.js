@@ -26,3 +26,15 @@ test('snapshot rollback restores files without touching dependencies', () => {
     fs.rmSync(path.join(root, '.orbit-snapshots', path.basename(project)), { recursive: true, force: true });
   }
 });
+
+test('project validation rejects symlink escapes beneath the generated root', () => {
+  const root = generatedProjectsRoot();
+  fs.mkdirSync(root, { recursive: true });
+  const link = path.join(root, `escape-${Date.now()}`);
+  fs.symlinkSync('/tmp', link, 'dir');
+  try {
+    assert.throws(() => validateProjectPath(path.join(link, 'outside-project')), /Symbolic links/);
+  } finally {
+    fs.unlinkSync(link);
+  }
+});

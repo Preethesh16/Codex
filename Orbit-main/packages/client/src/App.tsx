@@ -494,7 +494,18 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product: posterPrompt, workspaceId })
       });
-      if (res.ok) setAdKit(await res.json());
+      if (res.ok) {
+        const initial = await res.json();
+        setAdKit(initial);
+        for (let attempt = 0; attempt < 70 && initial.jobId; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 5_000));
+          const jobResponse = await fetch(`/api/media/jobs/${initial.jobId}`);
+          if (!jobResponse.ok) break;
+          const job = await jobResponse.json();
+          if (job.output) setAdKit({ ...job.output, jobId: job.id, status: job.status });
+          if (['completed', 'failed', 'fallback'].includes(job.status)) break;
+        }
+      }
     } catch (err) {
       console.error('Ad kit error', err);
     } finally {
@@ -1679,6 +1690,15 @@ export default function App() {
                               <div key={idx} className="p-2 rounded-lg border border-stone-200 bg-[#fff1ec] text-[10px] text-stone-600">
                                 <b className="text-[#a53600]">Shot {idx + 1}</b> ({s.durationSec}s): {s.scene} — <i>"{s.onScreenText}"</i>
                               </div>
+                            ))}
+                          </div>
+                        )}
+                        {(adKit.stills || []).length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {adKit.stills.map((url: string, idx: number) => (
+                              <a key={url} href={url} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-stone-200">
+                                <img src={url} alt={`Storyboard still ${idx + 1}`} className="w-full h-auto" />
+                              </a>
                             ))}
                           </div>
                         )}
