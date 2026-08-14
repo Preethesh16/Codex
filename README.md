@@ -1,8 +1,10 @@
-# AI Product Workspace
+# Orbit — OpenAI Multi-Agent Founder Workspace
 
 This repository contains a collection of tools for turning an idea into a working digital product. It combines a workspace interface, backend services, automated project generation, feedback collection, and supporting experiments.
 
-The system is designed around replaceable providers. Models, code-generation services, deployment platforms, and other integrations can be swapped without changing the overall workflow.
+The current migration branch uses OpenAI Agents SDK for business orchestration,
+OpenAI media APIs for creative workflows, and the Codex SDK for contained,
+resumable MVP builds.
 
 ## Repository layout
 
@@ -60,15 +62,21 @@ npm install
 npm run dev
 ```
 
-Configure model, generation, and deployment providers through environment variables. Keep secrets in local `.env` files and never commit them.
+Set `OPENAI_API_KEY` only in each server's untracked `.env`. Orbit defaults to
+GPT-5.6 Sol/Terra/Luna, GPT Image 2, Sora 2 with storyboard fallback, TTS-1, and
+GPT-4o Transcribe. Keep Google credentials only in MultiVideo for Google sign-in
+and YouTube OAuth.
 
 ## Development notes
 
-- Keep provider-specific code behind service boundaries so integrations remain easy to replace.
+- Keep provider-specific media code behind service boundaries because the Sora
+  2 Videos API is scheduled to shut down on September 24, 2026.
 - Use local preview/development modes when testing generated applications.
 - Review generated files before deploying them to a public environment.
 - Run the relevant package build command before opening a pull request.
 
 ## Status
 
-This is an active prototype. The applications and integrations are evolving as workflows are tested and refined.
+The source migration is implemented on `orbit-openai-migration`. Credentialed
+model, OAuth, publishing, and browser end-to-end checks still require local keys
+and explicit approval; offline builds and unit tests are available without them.

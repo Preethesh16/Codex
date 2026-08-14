@@ -23,6 +23,7 @@ import {
   isOAuthConfigured, buildAuthorizeUrl, exchangeCodeForToken, fetchGithubUser, publishToGithub
 } from './services/githubService';
 import crypto from 'crypto';
+import OpenAI, { toFile } from 'openai';
 
 const app = express();
 const httpServer = createServer(app);
@@ -37,6 +38,18 @@ const io = new Server(httpServer, {
 
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
 app.use(express.json({ limit: '50mb' }));
+
+const requestBuckets = new Map<string, { count: number; resetAt: number }>();
+function rateLimit(limit: number, windowMs: number): express.RequestHandler {
+  return (req, res, next) => {
+    const key = `${req.ip}:${req.path}`;
+    const now = Date.now();
+    const bucket = requestBuckets.get(key);
+    if (!bucket || bucket.resetAt <= now) requestBuckets.set(key, { count: 1, resetAt: now + windowMs });
+    else if (++bucket.count > limit) return res.status(429).json({ error: 'Too many requests; retry later.' });
+    next();
+  };
+}
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'startupforge', builder: 'codex-sdk' });
@@ -68,7 +81,7 @@ function jobSink(job: HttpBuildJob): EventSink {
   };
 }
 
-app.post('/api/builds', async (req, res) => {
+app.post('/api/builds', rateLimit(10, 60_000), async (req, res) => {
   const { businessId, command, existingProjectPath } = req.body as { businessId?: number; command?: string; existingProjectPath?: string };
   if (!businessId || !command?.trim()) return res.status(400).json({ error: 'businessId and command are required' });
   const business = db.prepare('SELECT id FROM business_profiles WHERE id = ?').get(businessId);
@@ -388,14 +401,11 @@ app.post('/api/github/disconnect', (_req, res) => {
   res.json({ disconnected: true });
 });
 
-// ─── VOICE — Sarvam AI speech-to-text proxy ────────────────────────────────
-// Keeps the Sarvam key server-side. The client records mic audio, encodes it
-// to 16kHz mono WAV, and posts it here as base64. We forward it to Sarvam and
-// return the transcript so it can populate the command bar.
-app.post('/api/voice/transcribe', async (req, res) => {
-  const apiKey = process.env.SARVAM_API_KEY;
+// ─── VOICE — OpenAI speech-to-text proxy ──────────────────────────────────
+app.post('/api/voice/transcribe', rateLimit(20, 60_000), async (req, res) => {
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(503).json({ error: 'Voice transcription is not configured. Set SARVAM_API_KEY in server/.env.' });
+    return res.status(503).json({ error: 'Voice transcription is not configured. Set OPENAI_API_KEY in server/.env.' });
   }
 
   const { audio, mimeType, language } = req.body as {
@@ -408,32 +418,17 @@ app.post('/api/voice/transcribe', async (req, res) => {
     const b64 = audio.includes(',') ? audio.split(',')[1] : audio;
     const buffer = Buffer.from(b64, 'base64');
 
-    const form = new FormData();
     const type = mimeType || 'audio/wav';
     const ext = type.includes('wav') ? 'wav' : type.includes('mp3') ? 'mp3' : type.includes('webm') ? 'webm' : 'wav';
-    form.append('file', new Blob([buffer], { type }), `command.${ext}`);
-    form.append('model', process.env.SARVAM_STT_MODEL || 'saarika:v2');
-    // 'unknown' lets saarika auto-detect the spoken language (Hindi / English / etc.)
-    form.append('language_code', language || 'unknown');
-
-    const resp = await fetch('https://api.sarvam.ai/speech-to-text', {
-      method: 'POST',
-      headers: { 'api-subscription-key': apiKey },
-      body: form,
+    const client = new OpenAI({ apiKey, timeout: 60_000, maxRetries: 2 });
+    const result = await client.audio.transcriptions.create({
+      file: await toFile(buffer, `command.${ext}`, { type }),
+      model: process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe',
+      ...(language && language !== 'unknown' ? { language } : {}),
     });
-
-    const raw = await resp.text();
-    if (!resp.ok) {
-      console.error('Sarvam STT error:', resp.status, raw);
-      return res.status(502).json({ error: `Sarvam returned ${resp.status}`, detail: raw.slice(0, 300) });
-    }
-
-    let data: any = {};
-    try { data = JSON.parse(raw); } catch { /* non-JSON body */ }
-    const transcript = data.transcript ?? data.text ?? '';
-    res.json({ transcript, languageCode: data.language_code || null });
+    res.json({ transcript: result.text, languageCode: language || null });
   } catch (error: any) {
-    console.error('Voice transcription failed:', error);
+    console.error('Voice transcription failed:', error.message);
     res.status(500).json({ error: error.message || 'Transcription failed' });
   }
 });

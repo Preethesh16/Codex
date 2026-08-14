@@ -1,3 +1,4 @@
+import './env.js';
 import { Agent, run, webSearchTool } from '@openai/agents';
 import { z } from 'zod';
 import type { StartupContext } from 'orbit-core';
@@ -132,6 +133,73 @@ export const FinancePlanSchema = z.object({
     operations: z.number().min(0).max(100),
   }).refine((value) => Math.abs(Object.values(value).reduce((sum, item) => sum + item, 0) - 100) < 0.01, 'Allocations must sum to 100'),
 });
+
+const ContextPatchSchema = z.object({
+  business: z.object({ niche: z.string().optional(), targetMarket: z.string().optional(), stage: z.string().optional(), validationScore: z.number().min(0).max(100).optional(), tam: z.string().optional(), sam: z.string().optional() }).optional(),
+  financials: z.object({ runwayMonths: z.number().nonnegative().optional(), burnRate: z.number().nonnegative().optional(), breakEvenTarget: z.number().nonnegative().optional(), infrastructureCost: z.number().nonnegative().optional(), subscriptionCost: z.number().nonnegative().optional() }).optional(),
+  marketing: z.object({ brandVoice: z.string().optional(), taglines: z.array(z.string()).max(8).optional(), targetKeywords: z.array(z.string()).max(20).optional() }).optional(),
+  product: z.object({ features: z.array(z.string()).max(20).optional(), techStack: z.array(z.string()).max(20).optional() }).optional(),
+  legal: z.object({ riskRating: z.enum(['Low', 'Medium', 'High']).optional() }).optional(),
+}).strict();
+
+const WorkflowOutputSchema = z.object({
+  summary: z.string(),
+  citations: z.array(z.object({ title: z.string().optional(), url: z.string().url() })).max(20),
+  assumptions: z.array(z.string()).max(20),
+  contextPatch: ContextPatchSchema,
+});
+
+export type WorkflowOutput = z.infer<typeof WorkflowOutputSchema>;
+
+export const ORBIT_WORKFLOW_STAGES: ReadonlyArray<ReadonlyArray<OrbitDepartment>> = [
+  ['research'],
+  ['finance', 'legal', 'brand'],
+  ['conflict'],
+  ['marketing', 'code', 'sales'],
+];
+
+function workflowAgent(department: OrbitDepartment) {
+  const useWeb = department === 'research' || department === 'marketing';
+  const complex = department === 'finance' || department === 'legal' || department === 'conflict' || department === 'code';
+  return new Agent({
+    name: `Orbit workflow ${department}`,
+    instructions: `${instructions[department]} Return only evidence-backed analysis and a minimal context patch. Never put credentials or personal identifiers in output. Never claim an external action was executed.`,
+    model: complex ? OPENAI_MODELS.manager : OPENAI_MODELS.specialist,
+    tools: useWeb ? [webSearchTool()] : [],
+    outputType: WorkflowOutputSchema,
+  });
+}
+
+async function workflowRun(department: OrbitDepartment, objective: string, context: StartupContext, prior: string): Promise<WorkflowOutput> {
+  const result = await withRetry(() => run(workflowAgent(department), redactForOpenAI(`${contextPrompt(context, prior)}\n\nObjective: ${objective}`), { maxTurns: 10 }));
+  return WorkflowOutputSchema.parse(result.finalOutput);
+}
+
+export async function runOrbitWorkflow(objective: string, context: StartupContext): Promise<Array<{ department: OrbitDepartment; output: WorkflowOutput }>> {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured');
+  const results: Array<{ department: OrbitDepartment; output: WorkflowOutput }> = [];
+  const research = await workflowRun('research', objective, context, 'Research runs first.');
+  results.push({ department: 'research', output: research });
+  const researchSummary = JSON.stringify(research);
+  const parallel = await Promise.all((['finance', 'legal', 'brand'] as OrbitDepartment[]).map(async (department) => ({ department, output: await workflowRun(department, objective, context, researchSummary) })));
+  results.push(...parallel);
+  const conflict = await workflowRun('conflict', objective, context, JSON.stringify(parallel.map(({ department, output }) => ({ department, output }))));
+  results.push({ department: 'conflict', output: conflict });
+  const finalPrior = JSON.stringify({ research, parallel, conflict });
+  const delivery = await Promise.all((['marketing', 'code', 'sales'] as OrbitDepartment[]).map(async (department) => ({ department, output: await workflowRun(department, objective, context, finalPrior) })));
+  results.push(...delivery);
+  return results;
+}
+
+export function applyValidatedContextPatch(context: StartupContext, patch: unknown): StartupContext {
+  const parsed = ContextPatchSchema.parse(patch);
+  if (parsed.business) context.business = { ...context.business, ...parsed.business };
+  if (parsed.financials) context.financials = { ...context.financials, ...parsed.financials };
+  if (parsed.marketing) context.marketing = { ...context.marketing, ...parsed.marketing };
+  if (parsed.product) context.product = { ...context.product, ...parsed.product };
+  if (parsed.legal) context.legal = { ...context.legal, ...parsed.legal };
+  return context;
+}
 
 export async function refineFinancePlan(message: string, context: StartupContext) {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured');

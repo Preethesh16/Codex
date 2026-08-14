@@ -1,50 +1,46 @@
 # StartupForge
 
-Build production-ready MVPs from a business profile using a local **Gemma** brain (via Ollama) and an **Antigravity / Gemini** code orchestrator, with live file streaming and auto-deploy.
+StartupForge turns a privacy-filtered business profile into a working project
+using the OpenAI Codex SDK. Each generated project has one resumable Codex
+thread and follows Planner → implementation → Critic → repair.
 
 ## Architecture
 
-```
-User fills business profile →
-Gemma (local, Ollama) compiles context →
-User clicks "CREATE MVP" →
-Backend sends context to Antigravity/Gemini API →
-Files written to disk & streamed live to UI (Socket.io) →
-Auto-deploy to Vercel (or local preview) →
-Live URL returned
-```
-
-- `client/` — React + Vite + TypeScript + Tailwind onboarding wizard + control panel
-- `server/` — Node.js + Express + Socket.io + better-sqlite3 + Ollama + Google GenAI
-- `generated-mvps/` — output projects
-
-## Prerequisites
-
-```bash
-# Ollama with a local Gemma model (you pulled gemma4:e2b)
-ollama run gemma4:e2b
-
-# Vercel CLI (optional, for auto-deploy)
-npm install -g vercel
-vercel login
-```
+1. Business data is compiled locally; identity numbers, credentials, contacts,
+   founder names, and precise locations are omitted.
+2. Codex works directly inside a validated directory beneath
+   `generated-mvps/` with workspace-write sandboxing and no automatic approval.
+3. StartupForge snapshots the project before changes, streams canonical
+   `codex:*` events, records changed paths, runs the project build, and supports
+   rollback.
+4. HTTP build jobs (`POST /api/builds`) and SSE event reads let Orbit invoke the
+   service on every operating system. Socket.IO remains available for the UI.
+5. Deployment and GitHub publishing remain explicit human actions.
 
 ## Setup
 
 ```bash
-# Server
 cd server
-cp .env.example .env   # then edit values
+cp .env.example .env
+# Add OPENAI_API_KEY to the untracked .env file.
 npm install
-npm run dev            # http://localhost:3001
+npm run dev
 
-# Client (new terminal)
-cd client
+# In another terminal:
+cd ../client
 npm install
-npm run dev            # http://localhost:5173
+npm run dev
 ```
 
-## Notes
+The server runs on `http://localhost:3001`; the client runs on
+`http://localhost:5173`. Windows users may run `start.bat`, but Orbit itself
+uses the HTTP API and has no platform-specific launcher dependency.
 
-- `server/.env` is git-ignored. Put your `GOOGLE_API_KEY` there — never hardcode it.
-- The default local model is set via `GEMMA_MODEL` in `server/.env`. Set it to whatever tag you pulled (e.g. `gemma4:e2b`).
+## Safety
+
+- Never commit `.env` files or generated projects.
+- Absolute paths, traversal, and writes at the generated-project root are
+  rejected.
+- Codex does not publish, deploy, or write to GitHub in its build sandbox.
+- Use `POST /api/builds/:jobId/rollback` with the returned snapshot ID to restore
+  a pre-edit project state.

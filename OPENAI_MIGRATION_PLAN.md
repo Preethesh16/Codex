@@ -28,7 +28,7 @@
 - `gpt-image-2`: image generation and editing.
 - `sora-2`: hackathon video generation behind a replaceable adapter.
 - `tts-1`: voiceovers.
-- `gpt-4o-transcribe`: planned OpenAI transcription path.
+- `gpt-4o-transcribe`: StartupForge voice-command transcription.
 
 ## Implementation
 

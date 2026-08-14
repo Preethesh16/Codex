@@ -36,7 +36,7 @@ const EVENT_ICONS: Record<string, IconType> = {
   builder: IconHammer,
   critic: IconScan,
   fixer: IconWrench,
-  antigravity: IconCompass,
+  codex: IconCompass,
   model: IconSettings,
   file_start: IconFile,
   file_done: IconCheck,
@@ -181,7 +181,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <span className={isBuilding ? 'dot dot-live' : 'dot'} style={{ background: isBuilding ? 'var(--accent)' : 'var(--text-3)' }} />
             <span className="text-[11.5px] mono" style={{ color: 'var(--text-2)' }}>
-              antigravity · multi-agent
+              codex sdk · resumable build
             </span>
           </div>
         </div>

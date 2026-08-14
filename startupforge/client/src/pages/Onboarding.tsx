@@ -28,7 +28,7 @@ export default function Onboarding() {
   const handleComplete = async () => {
     setSaving(true);
     try {
-      // Save to backend (Gemma + SQLite)
+      // Save to backend (local privacy context + SQLite)
       const res = await axios.post(`${SERVER}/api/business`, {
         ...profile,
         brandColors: profile.brandColors || ['#6366F1', '#8B5CF6', '#22D3EE']

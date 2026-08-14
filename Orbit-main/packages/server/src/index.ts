@@ -1,4 +1,5 @@
 import express from 'express';
+import './env.js';
 import cors from 'cors';
 import { db } from './db.js';
 import { StartupContext, AgentMessage, ExecutionTask, Conflict } from 'orbit-core';
@@ -6,34 +7,47 @@ import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { registerCreative } from './creative.js';
-import { normalizeOpenAIError, refineFinancePlan, runDepartmentAgent, type OrbitDepartment } from './openaiRuntime.js';
+import { applyValidatedContextPatch, normalizeOpenAIError, refineFinancePlan, runDepartmentAgent, runOrbitWorkflow, type OrbitDepartment } from './openaiRuntime.js';
+import { createApproval, decideApproval, listAgentRuns, listApprovals, saveAgentRun } from './runStore.js';
 
 const __dirnameServer = dirname(fileURLToPath(import.meta.url));
-
-// Simple local .env parser
-if (existsSync('.env')) {
-  try {
-    const envLines = readFileSync('.env', 'utf8').split('\n');
-    for (const line of envLines) {
-      const parts = line.split('=');
-      if (parts.length >= 2) {
-        const key = parts[0].trim();
-        const value = parts.slice(1).join('=').trim();
-        if (key) {
-          process.env[key] = value;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error loading .env file:', err);
-  }
-}
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+const apiBuckets = new Map<string, { count: number; resetAt: number }>();
+const aiRateLimit: express.RequestHandler = (req, res, next) => {
+  const key = `${req.ip}:${req.path}`;
+  const now = Date.now();
+  const bucket = apiBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) apiBuckets.set(key, { count: 1, resetAt: now + 60_000 });
+  else if (++bucket.count > 20) return res.status(429).json({ error: 'Too many AI requests; retry later.' });
+  next();
+};
+app.use(['/api/chat', '/api/execution/trigger', '/api/finance/refine', '/api/marketing', '/api/creative', '/api/deck'], aiRateLimit);
+
 const PORT = process.env.PORT || 5000;
+
+app.get('/api/agent-runs', (req, res) => {
+  res.json(listAgentRuns(String(req.query.workspaceId || 'default-workspace')));
+});
+
+app.get('/api/approvals', (req, res) => {
+  res.json(listApprovals(String(req.query.workspaceId || 'default-workspace')));
+});
+
+app.post('/api/approvals/:id/:decision', (req, res) => {
+  const expected = process.env.ORBIT_APPROVAL_TOKEN;
+  if (!expected) return res.status(503).json({ error: 'Approval authorization is not configured.' });
+  if (req.headers.authorization !== `Bearer ${expected}`) return res.status(401).json({ error: 'Invalid approval authorization.' });
+  const decision = req.params.decision;
+  if (decision !== 'approve' && decision !== 'reject') return res.status(400).json({ error: 'decision must be approve or reject' });
+  const workspaceId = String(req.body.workspaceId || 'default-workspace');
+  const approval = decideApproval(req.params.id, workspaceId, decision === 'approve' ? 'approved' : 'rejected', String(req.body.decidedBy || 'founder'));
+  if (!approval) return res.status(404).json({ error: 'pending approval not found' });
+  res.json(approval);
+});
 
 // Helper: Get active context
 function getContext(workspaceId: string): StartupContext {
@@ -242,7 +256,7 @@ app.post('/api/launch-startupforge', async (req, res) => {
 });
 
 // -----------------------------------------------------------------
-// DYNAMIC WORKFLOW SIMULATION LOOP
+// DYNAMIC OPENAI MULTI-AGENT WORKFLOW
 // -----------------------------------------------------------------
 app.post('/api/execution/trigger', async (req, res) => {
   const workspaceId = (req.body.workspaceId as string) || 'default-workspace';
@@ -277,7 +291,7 @@ app.post('/api/execution/trigger', async (req, res) => {
   saveContext(workspaceId, ctx);
 
   // Setup the task graph in database
-  const flowSteps: Omit<ExecutionTask, 'status' | 'startedAt' | 'completedAt'>[] = [
+  const offlineDemoSteps: Omit<ExecutionTask, 'status' | 'startedAt' | 'completedAt'>[] = [
     {
       id: 'task-research',
       title: 'Analyze Competitors & TAM/SAM Market Size',
@@ -364,6 +378,22 @@ app.post('/api/execution/trigger', async (req, res) => {
     }
   ];
 
+  const task = (id: string, title: string, department: string, dependencies: string[], suggestedNext: string[]): Omit<ExecutionTask, 'status' | 'startedAt' | 'completedAt'> => ({
+    id, title, department, dependencies, suggestedNext, costImpact: 0,
+    confidenceScore: 0, reasoning: 'Completed by an evidence-backed OpenAI agent run.',
+    risks: [], durationEstimateMs: 0,
+  });
+  const flowSteps = [
+    task('task-research', 'Research market, competitors, demand, and evidence', 'Research', [], ['task-finance', 'task-legal', 'task-brand']),
+    task('task-finance', 'Model financial feasibility and unit economics', 'Finance', ['task-research'], ['task-conflict']),
+    task('task-legal', 'Assess legal and compliance risks', 'Legal', ['task-research'], ['task-conflict']),
+    task('task-brand', 'Define evidence-based positioning and brand', 'Brand', ['task-research'], ['task-conflict']),
+    task('task-conflict', 'Reconcile specialist assumptions and trade-offs', 'Conflict', ['task-finance', 'task-legal', 'task-brand'], ['task-marketing', 'task-build', 'task-gtm']),
+    task('task-marketing', 'Create measurable marketing experiments', 'Marketing', ['task-conflict'], []),
+    task('task-build', 'Produce an approval-ready Codex build specification', 'Build', ['task-conflict'], []),
+    task('task-gtm', 'Create sales and go-to-market execution plan', 'GTM', ['task-conflict'], []),
+  ];
+
   // Save steps into tasks table
   const insertTask = db.prepare(`
     INSERT INTO tasks (id, workspace_id, title, department, status, dependencies, cost_impact, confidence_score, reasoning, risks, suggested_next, duration_estimate_ms)
@@ -387,14 +417,68 @@ app.post('/api/execution/trigger', async (req, res) => {
     );
   }
 
-  // Trigger Async simulator loop without blocking the API call
-  runSimulatorLoop(workspaceId);
+  // Run the real graph asynchronously: Research → parallel Finance/Legal/Brand
+  // → Conflict → parallel Marketing/Build/GTM.
+  void runAgentWorkflow(workspaceId, objective).catch((error) => {
+    console.error('Orbit workflow failed:', error instanceof Error ? error.message : 'unknown error');
+  });
 
-  res.json({ success: true, message: 'Simulation initialized' });
+  res.status(202).json({ success: true, message: 'OpenAI agent workflow started' });
 });
 
-// Async Simulation Loop
-async function runSimulatorLoop(workspaceId: string) {
+async function runAgentWorkflow(workspaceId: string, objective: string): Promise<void> {
+  const context = getContext(workspaceId);
+  const updateTaskStatus = db.prepare(`UPDATE tasks SET status = ?, started_at = ?, completed_at = ? WHERE id = ? AND workspace_id = ?`);
+  const log = db.prepare(`INSERT INTO local_agent_communication_log (message_id, sender, recipient, action, payload) VALUES (?, ?, ?, ?, ?)`);
+  const departmentTask: Partial<Record<OrbitDepartment, string>> = {
+    research: 'task-research', brand: 'task-brand', finance: 'task-finance', legal: 'task-legal',
+    conflict: 'task-conflict', marketing: 'task-marketing', code: 'task-build', sales: 'task-gtm',
+  };
+  const started = new Date().toISOString();
+  for (const taskId of Object.values(departmentTask)) updateTaskStatus.run('inprogress', started, null, taskId, workspaceId);
+  try {
+    const results = await runOrbitWorkflow(objective, context);
+    for (const { department, output } of results) {
+      const traceId = crypto.randomUUID();
+      applyValidatedContextPatch(context, output.contextPatch);
+      const taskId = departmentTask[department];
+      const completedAt = new Date().toISOString();
+      if (taskId) updateTaskStatus.run('completed', started, completedAt, taskId, workspaceId);
+      log.run(
+        `msg-run-${crypto.randomUUID()}`,
+        department,
+        'operations',
+        'AGENT_RUN_COMPLETED',
+        JSON.stringify({ summary: output.summary, citations: output.citations, assumptions: output.assumptions, traceId }),
+      );
+      saveAgentRun({
+        id: crypto.randomUUID(), workspaceId, agent: department, status: 'completed', traceId,
+        citations: output.citations, toolCalls: [], approvalIds: [], output,
+        createdAt: started, completedAt,
+      });
+      saveContext(workspaceId, context);
+    }
+    const buildRun = listAgentRuns(workspaceId).filter((run) => run.agent === 'code').at(-1);
+    if (buildRun) {
+      const approval = createApproval({ workspaceId, runId: buildRun.id, toolName: 'startupforge.build', reason: 'Allow StartupForge/Codex to write the generated MVP files.' });
+      buildRun.status = 'awaiting_approval';
+      buildRun.approvalIds = [approval.id];
+      saveAgentRun(buildRun);
+    }
+    context.business.stage = 'GTM';
+    context.technical.buildStatus = 'idle';
+    context.technical.buildLogs = ['Build specification ready. Human approval is required to start StartupForge/Codex.'];
+    saveContext(workspaceId, context);
+  } catch (error) {
+    for (const taskId of Object.values(departmentTask)) updateTaskStatus.run('failed', started, new Date().toISOString(), taskId, workspaceId);
+    log.run(`msg-run-${crypto.randomUUID()}`, 'operations', 'founder', 'AGENT_RUN_FAILED', JSON.stringify({ error: normalizeOpenAIError(error, crypto.randomUUID()) }));
+    throw error;
+  }
+}
+
+// Legacy offline demo fixture retained only for venue demos; never invoked by
+// the production execution endpoint.
+async function runOfflineDemoFixture(workspaceId: string) {
   const steps = ['task-ops', 'task-research', 'task-brand', 'task-finance', 'task-design', 'task-engineering', 'task-qa'];
 
   const logMsg = db.prepare(`

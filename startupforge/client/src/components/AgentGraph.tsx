@@ -22,7 +22,7 @@ interface AgentDef {
 const CY = 118;
 
 const AGENTS: AgentDef[] = [
-  { key: 'coordinator', name: 'Coordinator', Icon: IconCompass, role: 'orchestrates', color: '#8A93A6', x: 74, matches: ['coordinator', 'antigravity', 'context'] },
+  { key: 'coordinator', name: 'Coordinator', Icon: IconCompass, role: 'orchestrates', color: '#8A93A6', x: 74, matches: ['coordinator', 'codex', 'context'] },
   { key: 'planner', name: 'Planner', Icon: IconCpu, role: 'plans files', color: '#7C9CFF', x: 210, matches: ['planner'] },
   { key: 'builder', name: 'Builders', Icon: IconHammer, role: 'write code', color: '#5BD4EE', x: 346, matches: ['builder', 'file_start', 'file_done', 'file', 'model'] },
   { key: 'critic', name: 'Critic', Icon: IconScan, role: 'validates', color: '#F4B860', x: 482, matches: ['critic'] },
@@ -72,7 +72,7 @@ export default function AgentGraph({ events, active }: { events: BuildEvent[]; a
             MULTI-AGENT PIPELINE
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-            Autonomous orchestration · Antigravity
+            Resumable implementation · OpenAI Codex
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em', color: statusColor, fontFamily: 'var(--font-mono)' }}>

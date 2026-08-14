@@ -169,4 +169,104 @@ changing `main` or causing external publishing without approval.
 - Node syntax checks passed for the server entry point, publishing routes,
   approval model, credential vault, and YouTube adapter.
 - No OAuth, upload, or publishing calls were made.
-- Commit and push: pending immediately after this audit update.
+- Commit and push: `21bec71` pushed successfully to
+  `codex/orbit-openai-migration`.
+
+### Implementation batch — real Orbit graph, validated patches, and run records
+
+- Replaced the production execution trigger's simulated timer loop with the
+  approved agent order: Research first; Finance, Legal, and Brand in parallel;
+  Conflict next; then Marketing, Build, and GTM in parallel.
+- Each workflow specialist returns a strict structured result with summary,
+  citations, assumptions, and an allowlisted context patch.
+- Added validated patch application that rejects mutations outside business,
+  finance, marketing, product, and legal allowlists.
+- Persisted agent-run records locally with status, citations, trace IDs, output,
+  tool calls, approvals, and errors supported by the public type.
+- Added approval records and approve/reject APIs. A completed Build specialist
+  result creates a pending `startupforge.build` approval instead of writing
+  project files automatically.
+- Kept the old deterministic timer data only as an explicitly named offline
+  venue-demo fixture; the production endpoint never invokes it.
+
+#### Files changed
+
+- `Orbit-main/packages/server/src/openaiRuntime.ts`
+- `Orbit-main/packages/server/src/runStore.ts`
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/packages/server/test/openaiRuntime.test.mjs`
+
+#### Verification and status
+
+- Orbit server TypeScript build: passed.
+- Orbit server tests: passed 3 tests, including rejection of non-allowlisted
+  context mutations.
+- Live workflow not run because credentials have not been supplied.
+- Commit and push: pending immediately after full package verification.
+
+### Implementation batch — hardening, transcription, evals, and client parity
+
+- Updated StartupForge's client to consume canonical `context:*` and `codex:*`
+  events, removing Antigravity/Gemma UI labels while the server retains aliases
+  for older clients.
+- Replaced optional Sarvam transcription with the OpenAI SDK and
+  `gpt-4o-transcribe`.
+- Added request throttling to Orbit AI routes and StartupForge build/transcribe
+  routes. Orbit approval mutations require a separately configured bearer
+  secret.
+- Fixed Orbit environment loading so local untracked values are available
+  before model routing and agent modules initialize.
+- Updated StartupForge's documentation and Windows convenience script; it no
+  longer installs or starts Ollama. Orbit remains platform-independent through
+  the HTTP build API.
+- Added a nine-case eval dataset for research accuracy, unsafe legal claims,
+  budget math, agent conflict, prompt injection, PII leakage, malicious paths,
+  approval bypass, and Sora fallback.
+- Updated root documentation and the migration plan to describe the implemented
+  OpenAI stack and credentialed-verification boundary.
+
+#### Files changed
+
+- `README.md`
+- `OPENAI_MIGRATION_PLAN.md`
+- `evals/orbit-migration-cases.jsonl`
+- `Orbit-main/packages/server/src/env.ts`
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/packages/server/src/openaiRuntime.ts`
+- `Orbit-main/packages/server/src/runStore.ts`
+- `Orbit-main/packages/server/.env.example`
+- `Orbit-main/packages/server/test/openaiRuntime.test.mjs`
+- `startupforge/README.md`
+- `startupforge/start.bat`
+- `startupforge/client/src/components/AgentCluster.tsx`
+- `startupforge/client/src/components/AgentGraph.tsx`
+- `startupforge/client/src/hooks/useSocket.ts`
+- `startupforge/client/src/pages/Dashboard.tsx`
+- `startupforge/client/src/pages/Onboarding.tsx`
+- `startupforge/server/src/index.ts`
+- `startupforge/server/.env.example`
+- `startupforge/server/package.json`
+- `startupforge/server/package-lock.json`
+
+#### Verification and status
+
+- Full Orbit monorepo build: passed; 4 Orbit server tests passed.
+- StartupForge server build and 2 safety tests: passed.
+- StartupForge client build: passed.
+- MultiVideo 3 tests and server syntax checks: passed in the preceding batch.
+- Active source scan found no Google model SDK/API, Ollama, Gemini model,
+  delimiter parser, hard-coded Windows Orbit launcher, or Google model-key use.
+- Live model, Sora, OAuth, generated-MVP, browser, and publishing checks remain
+  intentionally unexecuted until local credentials are provided; no external
+  content was published or deployed.
+- Added OpenAI transcription SDK dependency and explicitly approved the
+  `better-sqlite3` native install script in StartupForge's package policy.
+- First StartupForge smoke start failed because npm had blocked the
+  `better-sqlite3` install script and its native binding was absent. Rebuilt the
+  approved dependency with foreground scripts; the next start succeeded.
+- Orbit runtime smoke: passed on port 5099; `/api/workspace` and an empty
+  `/api/agent-runs` query returned successfully.
+- StartupForge runtime smoke: passed on port 3099; `/api/health` returned the
+  `codex-sdk` builder status. Both processes were then stopped cleanly.
+- No OpenAI, OAuth, deployment, GitHub, or publishing request was made.
+- Commit and push: pending final diff check.

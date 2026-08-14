@@ -17,7 +17,7 @@ interface AgentDef {
 }
 
 const AGENTS: AgentDef[] = [
-  { key: 'coordinator', name: 'Coordinator', icon: '🧭', role: 'Orchestrates the team', color: '#6366F1', matches: ['coordinator', 'antigravity', 'context'] },
+  { key: 'coordinator', name: 'Coordinator', icon: '🧭', role: 'Orchestrates the team', color: '#6366F1', matches: ['coordinator', 'codex', 'context'] },
   { key: 'planner', name: 'Planner', icon: '🧠', role: 'Splits work into files', color: '#8B5CF6', matches: ['planner'] },
   { key: 'builder', name: 'Builders', icon: '🛠️', role: 'Write code in parallel', color: '#22D3EE', matches: ['builder', 'file_start', 'file_done', 'file', 'model'] },
   { key: 'critic', name: 'Critic', icon: '🔍', role: 'Validates & finds defects', color: '#F59E0B', matches: ['critic'] },

@@ -32,10 +32,10 @@ export function useSocket() {
 
     // Bind all socket events to store
     socket.on('build:id', ({ buildId }) => { setBuildId(buildId); });
-    socket.on('gemma:start', ({ message }) => addEvent('context', message));
-    socket.on('gemma:progress', ({ chars }) =>
+    socket.on('context:start', ({ message }) => addEvent('context', message));
+    socket.on('context:progress', ({ chars }) =>
       addEvent('context', `Compiling context — ${chars} chars`));
-    socket.on('gemma:complete', ({ message, contextLength }) =>
+    socket.on('context:complete', ({ message, contextLength }) =>
       addEvent('context', `${message} (${contextLength} chars)`));
     socket.on('agent:log', ({ agent, message }) => {
       // Map agent names to distinct event types for per-agent icons/colors
@@ -44,28 +44,21 @@ export function useSocket() {
       const type = knownTypes.find(t => agentType.includes(t)) || 'agent';
       addEvent(type, `[${agent}] ${message}`);
     });
-    socket.on('antigravity:start', ({ message, projectPath }) =>
-      addEvent('antigravity', message, { projectPath }));
-    socket.on('antigravity:model', ({ model, isFallback, agent }) =>
-      addEvent('model', `${agent ? `[${agent}] ` : ''}Using model: ${model}${isFallback ? ' (fallback)' : ''}`));
-    socket.on('antigravity:fallback', ({ message }) => addEvent('model', message));
-    socket.on('antigravity:chunk', ({ text }) => {
-      if (text.includes('===FILE:') || text.includes('===END_FILE===')) {
-        addEvent('file', text.trim().replace(/===FILE:|===/g, '').trim());
-      }
-    });
-    socket.on('antigravity:file_start', ({ path, agent }) =>
-      addEvent('file_start', `${agent ? `[${agent}] ` : ''}Creating ${path}`));
-    socket.on('antigravity:file_written', ({ path, lines, agent }) => {
-      addEvent('file_done', `${agent ? `[${agent}] ` : ''}Wrote ${path} · ${lines} lines`);
+    socket.on('codex:start', ({ message, projectPath }) =>
+      addEvent('codex', message, { projectPath }));
+    socket.on('codex:model', ({ model, agent }) =>
+      addEvent('model', `${agent ? `[${agent}] ` : ''}Using model: ${model}`));
+    socket.on('codex:message', ({ text }) => addEvent('agent', `[Codex] ${text}`));
+    socket.on('codex:file_changed', ({ path, kind, agent }) => {
+      addEvent('file_done', `${agent ? `[${agent}] ` : ''}${kind || 'updated'} ${path}`);
       setFilesCreated([...filesRef.current, path]);
     });
-    socket.on('antigravity:complete', ({ filesCreated: files, message }) => {
+    socket.on('codex:complete', ({ filesCreated: files, message }) => {
       addEvent('complete', message);
       setFilesCreated(files);
       setIsBuilding(false);
     });
-    socket.on('antigravity:error', ({ message }) => {
+    socket.on('codex:error', ({ message }) => {
       addEvent('error', `Error: ${message}`);
       setIsBuilding(false);
     });
