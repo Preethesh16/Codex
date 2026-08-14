@@ -192,7 +192,8 @@ to `codex/orbit-openai-migration`.
 #### Verification and status
 
 - Documentation/configuration diff check: passed.
-- Commit and push: pending milestone commit.
+- Integration, media, CSV, dependency, and eval hardening was committed as
+  `2f4fcfb` and pushed successfully to `codex/orbit-openai-migration`.
 
 ## 2026-08-14 18:54:37 IST — Continue completion audit
 
