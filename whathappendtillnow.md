@@ -3,6 +3,25 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-14 19:55:21 IST — Request credential checklist and publish Codex main
+
+### Request summary
+
+Explain exactly what access and credentials are still required from the project
+owner, and publish the verified Orbit migration to the `Preethesh16/Codex`
+repository's `main` branch.
+
+### Current batch status
+
+- Confirmed the worktree is clean on `orbit-openai-migration` at `a0e2631` and
+  matches `codex/orbit-openai-migration`.
+- Confirmed `codex/main` does not currently exist, so the authorized normal push
+  will create it without overwriting or force-updating an existing branch.
+- Confirmed the unrelated `origin/main` remains at `5cacae0` and is out of scope.
+- Files changed: `whathappendtillnow.md` only.
+- Tests: no implementation changed; prior verified suite remains authoritative.
+- Commit and push: pending.
+
 ## 2026-08-14 19:26:24 IST — Continue production-hardening audit
 
 ### Request summary
