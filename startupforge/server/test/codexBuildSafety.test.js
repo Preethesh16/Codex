@@ -85,15 +85,23 @@ test('generated MVP smoke runner executes the project build script', async () =>
   const root = generatedProjectsRoot();
   fs.mkdirSync(root, { recursive: true });
   const project = fs.mkdtempSync(path.join(root, 'mvp-smoke-'));
+  const hostEscapeMarker = path.join('/tmp', `startupforge-host-escape-${process.pid}-${Date.now()}`);
+  const priorKey = process.env.OPENAI_API_KEY;
   try {
+    process.env.OPENAI_API_KEY = 'test-secret-must-not-reach-generated-build';
     fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({
       name: 'generated-mvp-smoke', private: true,
       scripts: { build: 'node build.js' },
     }));
-    fs.writeFileSync(path.join(project, 'build.js'), "console.log('GENERATED_MVP_BUILD_OK')\n");
+    fs.writeFileSync(path.join(project, 'build.js'), `require('fs').writeFileSync(${JSON.stringify(hostEscapeMarker)}, 'sandbox-only');\nconsole.log('GENERATED_MVP_BUILD_OK', process.env.OPENAI_API_KEY || 'NO_SERVER_SECRET');\n`);
     const output = await verifyBuild(project);
     assert.match(output, /GENERATED_MVP_BUILD_OK/);
+    assert.match(output, /NO_SERVER_SECRET/);
+    assert.doesNotMatch(output, /test-secret-must-not-reach/);
+    assert.equal(fs.existsSync(hostEscapeMarker), false);
   } finally {
+    if (priorKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = priorKey;
+    fs.rmSync(hostEscapeMarker, { force: true });
     fs.rmSync(project, { recursive: true, force: true });
   }
 });

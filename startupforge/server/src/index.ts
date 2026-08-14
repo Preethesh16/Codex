@@ -28,6 +28,7 @@ import {
 import crypto from 'crypto';
 import OpenAI, { toFile } from 'openai';
 import { requireExplicitApproval } from './services/actionApproval';
+import { consumeOAuthState, createOAuthState } from './services/oauthState';
 
 const app = express();
 const httpServer = createServer(app);
@@ -392,8 +393,6 @@ app.get('/api/projects', (_req, res) => {
 
 // ─── GITHUB CONNECT / PUBLISH ───────────────────────────────────────────────
 
-const GITHUB_STATE_SECRET = crypto.randomBytes(16).toString('hex');
-
 // Where to send the user after the GitHub OAuth callback
 function githubCallbackUrl(req: express.Request): string {
   return process.env.GITHUB_CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/github/callback`;
@@ -414,15 +413,15 @@ app.get('/api/github/auth-url', (req, res) => {
   if (!isOAuthConfigured()) {
     return res.status(400).json({ error: 'GitHub OAuth is not configured. Set GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET, or use "Connect with token" instead.' });
   }
-  const url = buildAuthorizeUrl(githubCallbackUrl(req), GITHUB_STATE_SECRET);
+  const url = buildAuthorizeUrl(githubCallbackUrl(req), createOAuthState());
   res.json({ url });
 });
 
 // Step 2: GitHub redirects back here with ?code=...
 app.get('/api/github/callback', async (req, res) => {
-  const { code } = req.query as { code?: string };
+  const { code, state } = req.query as { code?: string; state?: string };
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-  if (!code) return res.redirect(`${clientUrl}/dashboard?github=error`);
+  if (!code || !consumeOAuthState(state)) return res.redirect(`${clientUrl}/dashboard?github=error`);
 
   try {
     const token = await exchangeCodeForToken(code, githubCallbackUrl(req));

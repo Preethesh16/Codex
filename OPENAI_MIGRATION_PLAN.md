@@ -18,19 +18,28 @@ credentials were supplied; no external publication or deployment was attempted.
 | Privacy redaction, untrusted-data isolation, text/CSV-only cloud extraction | Orbit and StartupForge privacy tests; CSV HTTP integration test | Verified |
 | Context patch allowlist and public run/approval/media types | Orbit core/server build and schema tests | Verified |
 | Codex Planner → implement → Critic → repair, resumption, containment, diff, rollback | StartupForge build-safety tests | Verified |
+| Generated-project command isolation, secret blocking, no-network builds, Git command safety | StartupForge sandbox and credential tests | Verified on Linux |
 | Durable build jobs, SSE replay, canonical/compatibility events | StartupForge job/event tests | Verified |
 | Authenticated Orbit → StartupForge handoff and workspace isolation | StartupForge isolated HTTP integration test | Verified |
+| Atomic private state, explicit browser origins, and bounded AI routes | Orbit atomic-storage and HTTP-policy tests | Verified |
 | GPT Image generate/edit persistence, voice persistence, Sora polling and fallback | Mock creative HTTP integration test | Verified without provider spend |
-| YouTube agent tool and no-upload-before-approval invariant | MultiVideo Agents SDK/publishing tests | Verified without OAuth call |
+| OAuth state, protected sessions, bounded uploads, YouTube agent tool, and no-upload-before-approval invariant | MultiVideo Agents SDK/publishing tests | Verified without OAuth call |
 | Every Node build and generated MVP smoke | Full package build pass and StartupForge generated-project test | Verified |
 | Live Agents, GPT Image, Sora, TTS, Codex, Google OAuth, and YouTube | Requires locally supplied credentials and explicit external-action approval | Pending environment |
 | Full credentialed browser journey | Requires the preceding live services | Pending environment |
 
-Production dependency audits are clean for MultiVideo, StartupForge server and
-client, and the standalone Orbit workspace. Orbit's text-only pitch-deck path
-still inherits an upstream `image-size` advisory through `pptxgenjs`; no patched
+Production dependency audits are clean for MultiVideo and the StartupForge
+server and client. Orbit's text-only pitch-deck path still inherits an upstream
+`image-size` advisory through `pptxgenjs`; no patched
 dependency path exists in the current lockfile, uploaded images are never passed
 to that renderer, and a forced incompatible downgrade was not applied.
+
+Mutable Orbit data defaults to the untracked `packages/server/uploads/`
+runtime area and is replaced atomically with private file permissions.
+StartupForge runs generated-project commands in Bubblewrap on Linux with a
+cleared environment, project-only writes, and no build-time network. Other
+hosts fail closed unless an operator explicitly enables the documented unsafe
+fallback for local development.
 
 ## Repository and goal bootstrap
 
@@ -101,7 +110,8 @@ to that renderer, and a forced incompatible downgrade was not applied.
 
 - Preserve current creative endpoint contracts where practical.
 - Persist asynchronous `MediaJob` states and fall back to storyboard plus GPT
-  Image stills when Sora is unavailable.
+  Image stills when Sora is unavailable. The current Videos API adapter uses
+  persisted polling; no unrelated generic webhook endpoint is exposed.
 - Wrap YouTube upload as an approval-required agent tool.
 - Clearly mark existing Facebook and LinkedIn mocks as unavailable.
 

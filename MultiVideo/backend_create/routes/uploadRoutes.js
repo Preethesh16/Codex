@@ -2,23 +2,31 @@ const multer = require('multer');
 const requireLogin = require('../middlewares/requireLogin');
 const Video = require('../models/Video');
 const fs = require('fs');
+const path = require('path');
+
+const uploadDirectory = path.resolve(process.env.MULTIVIDEO_UPLOAD_DIR || 'uploads');
 
 // Multer Storage Setup
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = 'uploads/';
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir);
-        }
-        cb(null, dir);
+        if (!fs.existsSync(uploadDirectory)) fs.mkdirSync(uploadDirectory, { recursive: true, mode: 0o700 });
+        cb(null, uploadDirectory);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + '-' + file.originalname);
+        const safeOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+        cb(null, file.fieldname + '-' + uniqueSuffix + '-' + safeOriginal);
     }
 });
 
-const upload = multer({ storage: storage });
+const allowedVideoTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+const upload = multer({
+    storage,
+    limits: { fileSize: 500 * 1024 * 1024, files: 1, fields: 10 },
+    fileFilter: (_req, file, cb) => allowedVideoTypes.has(file.mimetype)
+        ? cb(null, true)
+        : cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'video'))
+});
 
 module.exports = (app) => {
     app.post('/api/upload', requireLogin, upload.single('video'), async (req, res) => {

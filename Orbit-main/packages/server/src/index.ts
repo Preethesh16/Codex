@@ -10,22 +10,20 @@ import { registerCreative } from './creative.js';
 import { applyValidatedContextPatch, normalizeOpenAIError, refineFinancePlan, runDepartmentAgent, runOrbitWorkflow, type OrbitDepartment } from './openaiRuntime.js';
 import { createApproval, decideApproval, listAgentRuns, listApprovals, saveAgentRun, updateApprovalExecution } from './runStore.js';
 import { startupForgeProfileFromContext } from './startupForgeBridge.js';
+import { allowedOrigins, createRateLimit, isAllowedOrigin } from './httpPolicy.js';
 
 const __dirnameServer = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const browserOrigins = allowedOrigins();
+app.use(cors({
+  credentials: true,
+  origin: (origin, callback) => callback(null, isAllowedOrigin(origin, browserOrigins)),
+}));
+app.use(express.json({ limit: process.env.ORBIT_JSON_LIMIT || '25mb' }));
 
-const apiBuckets = new Map<string, { count: number; resetAt: number }>();
-const aiRateLimit: express.RequestHandler = (req, res, next) => {
-  const key = `${req.ip}:${req.path}`;
-  const now = Date.now();
-  const bucket = apiBuckets.get(key);
-  if (!bucket || bucket.resetAt <= now) apiBuckets.set(key, { count: 1, resetAt: now + 60_000 });
-  else if (++bucket.count > 20) return res.status(429).json({ error: 'Too many AI requests; retry later.' });
-  next();
-};
+const configuredAiLimit = Number(process.env.ORBIT_AI_REQUESTS_PER_MINUTE || 20);
+const aiRateLimit = createRateLimit(Number.isFinite(configuredAiLimit) && configuredAiLimit > 0 ? configuredAiLimit : 20, 60_000);
 app.use(['/api/chat', '/api/execution/trigger', '/api/finance/refine', '/api/marketing', '/api/creative', '/api/deck'], aiRateLimit);
 
 const PORT = process.env.PORT || 5000;

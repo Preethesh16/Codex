@@ -1,19 +1,17 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
+import { join, resolve } from 'path';
 import type { AgentRun, ToolApproval } from 'orbit-core';
+import { readJson, writeJsonAtomic } from './atomicJson.js';
 
-const base = join(process.cwd(), 'uploads');
+const base = process.env.ORBIT_DATA_DIR ? resolve(process.env.ORBIT_DATA_DIR) : join(process.cwd(), 'uploads');
 const runsPath = join(base, 'agent-runs.json');
 const approvalsPath = join(base, 'tool-approvals.json');
 
 function read<T>(file: string): T[] {
-  if (!existsSync(file)) return [];
-  try { return JSON.parse(readFileSync(file, 'utf8')) as T[]; } catch { return []; }
+  return readJson<T[]>(file, []);
 }
 
 function write<T>(file: string, items: T[]): void {
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify(items.slice(-500), null, 2));
+  writeJsonAtomic(file, items.slice(-500));
 }
 
 export function saveAgentRun(run: AgentRun): void {

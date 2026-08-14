@@ -5,6 +5,8 @@ process.env.TOKEN_ENCRYPTION_KEY = 'test-only-key-that-is-never-used-in-producti
 const { encryptSecret, decryptSecret } = require('../services/credentialVault');
 const { executeApprovedPublish } = require('../services/approvedPublisher');
 const { createYouTubePublishTool } = require('../services/youtubePublishTool');
+const { createOAuthState, consumeOAuthState } = require('../services/oauthState');
+const { createRateLimit } = require('../middlewares/rateLimit');
 
 test('publishing defaults to private and identifies unavailable adapters', () => {
     const request = normalizePublishRequest(['youtube', 'linkedin', 'youtube'], 'invalid');
@@ -59,4 +61,33 @@ test('OpenAI YouTube tool requires native approval and only queues a pending req
     });
     assert.equal(requests, 1);
     assert.equal(uploads, 0);
+});
+
+test('YouTube OAuth state is session-bound and one-time', () => {
+    const session = {};
+    const state = createOAuthState(session, 'youtube');
+    assert.ok(state.length >= 40);
+    assert.equal(consumeOAuthState(session, 'youtube', `${state}x`), false);
+    const next = createOAuthState(session, 'youtube');
+    assert.equal(consumeOAuthState(session, 'youtube', next), true);
+    assert.equal(consumeOAuthState(session, 'youtube', next), false);
+});
+
+test('external-action rate limiter returns 429 with retry guidance', () => {
+    const middleware = createRateLimit({ limit: 2, windowMs: 60_000 });
+    const request = { ip: '127.0.0.1', baseUrl: '/api/publish', path: '/' };
+    let passed = 0;
+    let status;
+    let body;
+    const response = {
+        set: () => undefined,
+        status: (value) => { status = value; return response; },
+        json: (value) => { body = value; return response; }
+    };
+    middleware(request, response, () => { passed += 1; });
+    middleware(request, response, () => { passed += 1; });
+    middleware(request, response, () => { passed += 1; });
+    assert.equal(passed, 2);
+    assert.equal(status, 429);
+    assert.match(body.error, /Too many requests/);
 });

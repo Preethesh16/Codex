@@ -3,6 +3,170 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-14 19:26:24 IST — Continue production-hardening audit
+
+### Request summary
+
+Continue the active migration goal from the clean, pushed branch. Audit the
+remaining production-hardening sequence—authorization, rate limits, durable
+queues/webhooks, OCR boundary, and dependency exposure—implement everything
+that is locally verifiable, rerun full evidence, document, and publish only to
+`codex/orbit-openai-migration`.
+
+### Current batch status
+
+- Confirmed `orbit-openai-migration` is clean at `7283e3e` and matches the
+  `codex` remote branch.
+- Live provider and OAuth checks still have no supplied credentials, but the
+  source-side hardening audit can continue independently.
+- Files changed so far: this audit entry only.
+- Tests, commit, and push: pending audit findings.
+
+### Change batch — OAuth, session, upload, and external-action hardening
+
+- Bound YouTube OAuth authorization to a cryptographically random, one-time
+  session state and enabled Passport's state protection for Google sign-in.
+- Limited executable connection flows to YouTube; Facebook, LinkedIn, and
+  Twitter now return explicit HTTP 501 responses without starting OAuth.
+- Hardened production session cookies, required a production cookie secret,
+  made the client origin configurable, converted logout to a state-changing
+  POST, and retained encrypted OAuth token storage.
+- Added per-route throttling plus bounded video count/size/type checks,
+  filename sanitization, and a private configurable upload directory.
+- Added tests for one-time OAuth state and external-action throttling.
+
+#### Files changed
+
+- `MultiVideo/backend_create/index.js`
+- `MultiVideo/backend_create/.env.example`
+- `MultiVideo/backend_create/middlewares/rateLimit.js`
+- `MultiVideo/backend_create/routes/authRoutes.js`
+- `MultiVideo/backend_create/routes/uploadRoutes.js`
+- `MultiVideo/backend_create/services/oauthState.js`
+- `MultiVideo/backend_create/services/youtubeService.js`
+- `MultiVideo/backend_create/test/publishingPolicy.test.js`
+
+#### Verification and status
+
+- MultiVideo tests: 7 passed.
+- All backend JavaScript syntax checks: passed.
+- Production dependency audit: zero known vulnerabilities.
+- No OAuth or publishing call was made.
+- Commit and push: pending completion of this milestone.
+
+### Change batch — atomic private Orbit state and HTTP boundaries
+
+- Added atomic JSON replacement with private file permissions for Orbit agent
+  runs, approvals, media jobs, upload indexes, and local runtime state.
+- Moved the default mutable Orbit database out of the tracked source tree into
+  a configurable runtime path.
+- Added explicit browser-origin allowlisting, bounded JSON request bodies, and
+  a reusable configurable AI-route limiter.
+- Added tests for atomic replacement, file permissions, malformed-file recovery,
+  origin policy, and throttling.
+
+#### Files changed
+
+- `Orbit-main/packages/server/src/atomicJson.ts`
+- `Orbit-main/packages/server/src/db.ts`
+- `Orbit-main/packages/server/src/runStore.ts`
+- `Orbit-main/packages/server/src/creative.ts`
+- `Orbit-main/packages/server/src/httpPolicy.ts`
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/packages/server/.env.example`
+- `Orbit-main/packages/server/test/atomicJson.test.mjs`
+- `Orbit-main/packages/server/test/httpPolicy.test.mjs`
+
+#### Verification and status
+
+- Full Orbit monorepo build: passed.
+- Orbit server tests: 15 passed.
+- Commit and push: pending completion of this milestone.
+
+### Change batch — GitHub command safety and generated-build sandboxing
+
+- Replaced StartupForge's shell-composed Git/npm commands with argument-safe
+  process execution, validated repository/owner segments, removed force pushes,
+  and removed OAuth tokens from remote URLs and command arguments.
+- Git pushes now obtain credentials from a process environment-backed Git
+  credential helper; tokens are not persisted in repository configuration.
+- Git subprocesses receive a minimal environment, ignore system/global config,
+  disable hooks and filesystem monitors, and reject local executable filter,
+  diff, merge-driver, credential-helper, URL-rewrite, or transport override
+  configuration before publishing an existing project. Git transport is
+  restricted to HTTPS.
+- Added expiring, one-time GitHub OAuth state validation.
+- Moved generated-project install/build commands into a Bubblewrap filesystem
+  sandbox with a cleared environment. Builds have no network, installs use
+  `--ignore-scripts`, and unsupported hosts fail closed unless an explicit
+  unsafe-fallback environment flag is set.
+- Extended the generated-MVP smoke test to prove a build cannot read the server
+  OpenAI key or create an absolute-path file on the host.
+
+#### Files changed
+
+- `startupforge/server/src/index.ts`
+- `startupforge/server/src/services/githubService.ts`
+- `startupforge/server/src/services/oauthState.ts`
+- `startupforge/server/src/services/projectCommand.ts`
+- `startupforge/server/src/services/antigravityService.ts`
+- `startupforge/server/.env.example`
+- `startupforge/server/test/approvalsAndCredentials.test.js`
+- `startupforge/server/test/codexBuildSafety.test.js`
+
+#### Verification and status
+
+- StartupForge server build: passed.
+- StartupForge tests: 14 passed, including OAuth state, repository-name
+  injection rejection, secret isolation, absolute-path containment, and the
+  generated-MVP build, plus executable local Git configuration rejection.
+- No GitHub, npm registry, deployment, or publishing call was made.
+- A temporary Bubblewrap probe directory was removed after verification.
+- One new Git-policy test initially failed because Git normalized
+  `insteadOf` to lowercase in configuration output. The check was changed to
+  enumerate local keys and compare them case-insensitively; the rerun passed.
+- Commit and push: pending completion of this milestone.
+
+### Change batch — operator documentation alignment
+
+- Updated the authoritative migration matrix with atomic state, HTTP policy,
+  OAuth/session/upload protection, Git safety, and generated-command sandbox
+  evidence.
+- Clarified that Sora completion currently uses persisted polling and that no
+  unrelated generic webhook endpoint is exposed.
+- Replaced stale Gemini/Gemma/Antigravity onboarding instructions with the
+  current Agents SDK, Codex build-job, private runtime-state, and media-adapter
+  architecture.
+- Documented Bubblewrap requirements and the explicit fail-closed behavior for
+  generated-project commands.
+
+#### Files changed
+
+- `OPENAI_MIGRATION_PLAN.md`
+- `Orbit-main/ONBOARDING-ASHISH.md`
+- `startupforge/README.md`
+- `whathappendtillnow.md`
+
+#### Verification and status
+
+- Documentation/provider-name scan: passed. The only active-source `gemma:*`
+  reference is the intentionally retained temporary compatibility event alias;
+  the migration plan names old providers only to describe their replacement.
+- Repository credential-pattern scan found only synthetic test/example values;
+  no credential was added.
+- Full Orbit build and 15 server tests: passed.
+- StartupForge server build and 14 tests: passed; production audit clean.
+- StartupForge client build: passed; production audit clean.
+- MultiVideo tests: 7 passed; JavaScript syntax scan passed; production audit
+  clean.
+- Orbit's production audit still reports two high-severity findings from the
+  upstream `pptxgenjs` dependency on `image-size`. npm only offers a forced
+  breaking downgrade; the renderer remains text-only and does not receive
+  uploaded images, so the dependency was not force-changed.
+- Live OpenAI, Sora, OAuth, YouTube, GitHub publishing, and deployment checks
+  remain credential/approval gated and were not invoked.
+- Commit and push: pending completion of this milestone.
+
 ## 2026-08-14 19:14:11 IST — Continue locally verifiable completion work
 
 ### Request summary

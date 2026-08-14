@@ -1,11 +1,13 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { readJson, writeJsonAtomic } from './atomicJson.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const dbPath = join(__dirname, '../../orbit_secure_db.json');
+const dbPath = process.env.ORBIT_DB_PATH
+  ? resolve(process.env.ORBIT_DB_PATH)
+  : join(process.cwd(), 'uploads', 'orbit-state.json');
 
 // Interface for mock database state
 interface MockDatabaseState {
@@ -23,13 +25,9 @@ class MockDatabase {
   private state: MockDatabaseState;
 
   constructor() {
-    if (existsSync(dbPath)) {
-      try {
-        this.state = JSON.parse(readFileSync(dbPath, 'utf8'));
-      } catch (err) {
-        this.state = this.getInitialState();
-      }
-    } else {
+    const stored = readJson<MockDatabaseState | undefined>(dbPath, undefined);
+    if (stored) this.state = stored;
+    else {
       this.state = this.getInitialState();
       this.save();
     }
@@ -54,7 +52,7 @@ class MockDatabase {
   }
 
   private save() {
-    writeFileSync(dbPath, JSON.stringify(this.state, null, 2), 'utf8');
+    writeJsonAtomic(dbPath, this.state);
   }
 
   public exec(sql: string) {

@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { runSandboxedProjectCommand } from './projectCommand';
 
 const execFileAsync = promisify(execFile);
 const importCodex = new Function('return import("@openai/codex-sdk")') as () => Promise<typeof import('@openai/codex-sdk')>;
@@ -170,8 +171,7 @@ export async function verifyBuild(projectPath: string): Promise<string> {
   if (!fs.existsSync(packagePath)) return 'No package.json; Codex verification only.';
   const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8')) as { scripts?: Record<string, string> };
   if (!pkg.scripts?.build) return 'No build script; Codex verification only.';
-  const result = await execFileAsync('npm', ['run', 'build'], { cwd: projectPath, timeout: 180_000, maxBuffer: 4 * 1024 * 1024 });
-  return `${result.stdout}\n${result.stderr}`.slice(-8000);
+  return (await runSandboxedProjectCommand(projectPath, 'npm', ['run', 'build'], { timeoutMs: 180_000 })).slice(-8000);
 }
 
 function implementationPrompt(context: string, command: string, existing: boolean): string {

@@ -10,7 +10,7 @@ class YouTubeService {
         );
     }
 
-    getAuthUrl() {
+    getAuthUrl(_userId, state) {
         const scopes = [
             'https://www.googleapis.com/auth/youtube.upload',
             'https://www.googleapis.com/auth/youtube.readonly'
@@ -19,7 +19,8 @@ class YouTubeService {
         return this.oauth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: scopes,
-            prompt: 'consent' // Force refresh token
+            prompt: 'consent',
+            state
         });
     }
 

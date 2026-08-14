@@ -10,14 +10,15 @@
  * Requires the `git` CLI to be installed and on PATH.
  */
 import axios from 'axios';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Socket } from 'socket.io';
 import { repairDefaultExports, repairNamedExports, ensureRouterContext, repairTailwindColors } from './projectRepair';
+import { runSandboxedProjectCommand } from './projectCommand';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const GITHUB_API = 'https://api.github.com';
 
@@ -62,6 +63,7 @@ export async function fetchGithubUser(token: string): Promise<{ username: string
 // ─── Repo creation ──────────────────────────────────────────────────────────
 
 async function createOrFindRepo(token: string, name: string, isPrivate: boolean): Promise<{ owner: string; repo: string }> {
+  validateGithubRepoName(name);
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' };
   const user = await fetchGithubUser(token);
 
@@ -80,17 +82,43 @@ async function createOrFindRepo(token: string, name: string, isPrivate: boolean)
 
 // ─── Git CLI helpers ────────────────────────────────────────────────────────
 
-async function run(cmd: string, cwd: string): Promise<string> {
-  const { stdout } = await execAsync(cmd, { cwd, timeout: 300000, maxBuffer: 40 * 1024 * 1024 });
+async function run(program: string, args: string[], cwd: string, env?: NodeJS.ProcessEnv): Promise<string> {
+  const safeEnvironment = {
+    PATH: process.env.PATH || '', HOME: process.env.TMPDIR || '/tmp',
+    GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_ALLOW_PROTOCOL: 'https',
+    ...env,
+  };
+  const { stdout } = await execFileAsync(program, args, { cwd, env: safeEnvironment, timeout: 300000, maxBuffer: 40 * 1024 * 1024 });
   return stdout;
 }
 
-async function runIgnoreError(cmd: string, cwd: string): Promise<void> {
-  try { await run(cmd, cwd); } catch { /* best-effort */ }
+async function runIgnoreError(program: string, args: string[], cwd: string, env?: NodeJS.ProcessEnv): Promise<void> {
+  try { await run(program, args, cwd, env); } catch { /* best-effort */ }
 }
 
-function remoteUrl(token: string, owner: string, repo: string): string {
-  return `https://x-access-token:${token}@github.com/${owner}/${repo}.git`;
+export function validateGithubRepoName(value: string): string {
+  if (!/^[A-Za-z0-9_.-]{1,100}$/.test(value) || value === '.' || value === '..') throw new Error('Invalid GitHub repository name');
+  return value;
+}
+
+export function githubRemoteUrl(owner: string, repo: string): string {
+  if (!/^[A-Za-z0-9-]{1,100}$/.test(owner)) throw new Error('Invalid GitHub owner');
+  return `https://github.com/${owner}/${validateGithubRepoName(repo)}.git`;
+}
+
+const safeGitConfig = ['-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false'];
+const credentialHelper = '!f() { echo username=x-access-token; echo password=$GIT_PASSWORD; }; f';
+async function pushWithToken(args: string[], cwd: string, token: string): Promise<string> {
+  return run('git', [...safeGitConfig, '-c', 'credential.helper=', '-c', `credential.helper=${credentialHelper}`, ...args], cwd, { GIT_PASSWORD: token, GIT_TERMINAL_PROMPT: '0' });
+}
+
+export async function rejectExecutableGitConfiguration(cwd: string): Promise<void> {
+  const output = await run('git', ['config', '--local', '--name-only', '--list'], cwd);
+  const unsafeKey = /^(core\.(hookspath|fsmonitor|sshcommand)|filter\.|diff\..*\.command|merge\..*\.driver|url\..*\.insteadof|remote\..*\.(receivepack|uploadpack|proxy)|credential\.)/i;
+  if (output.split(/\r?\n/).some((key) => unsafeKey.test(key.trim()))) {
+    throw new Error('Repository contains executable Git configuration; publishing refused.');
+  }
 }
 
 // ─── Pages enablement ───────────────────────────────────────────────────────
@@ -139,12 +167,13 @@ export async function publishToGithub(options: {
   emit(`🔗 Preparing GitHub repository "${repoName}"...`);
   const { owner, repo } = await createOrFindRepo(token, repoName, isPrivate);
   const repoUrl = `https://github.com/${owner}/${repo}`;
-  const url = remoteUrl(token, owner, repo);
+  const url = githubRemoteUrl(owner, repo);
 
   // ── Push source code to `main` ──────────────────────────────────────────
   emit('📦 Committing source code...');
   const hasGit = fs.existsSync(path.join(projectPath, '.git'));
-  if (!hasGit) await run('git init -b main', projectPath);
+  if (!hasGit) await run('git', ['init', '-b', 'main'], projectPath);
+  else await rejectExecutableGitConfiguration(projectPath);
 
   // Keep build artifacts out of the source push.
   const gitignore = path.join(projectPath, '.gitignore');
@@ -155,16 +184,13 @@ export async function publishToGithub(options: {
   }
   fs.writeFileSync(gitignore, existingIgnore.trim() + '\n', 'utf-8');
 
-  await run('git add -A', projectPath);
-  await runIgnoreError(
-    `git -c user.email="startupforge@local" -c user.name="StartupForge" commit -m "Update via StartupForge"`,
-    projectPath
-  );
-  await runIgnoreError('git remote remove origin', projectPath);
-  await run(`git remote add origin ${url}`, projectPath);
+  await run('git', [...safeGitConfig, 'add', '-A'], projectPath);
+  await runIgnoreError('git', [...safeGitConfig, '-c', 'user.email=startupforge@local', '-c', 'user.name=StartupForge', 'commit', '-m', 'Update via StartupForge'], projectPath);
+  await runIgnoreError('git', ['remote', 'remove', 'origin'], projectPath);
+  await run('git', ['remote', 'add', 'origin', url], projectPath);
 
   emit('🚀 Pushing source to GitHub (main branch)...');
-  await run('git push -u origin HEAD:main --force', projectPath);
+  await pushWithToken(['push', '-u', 'origin', 'HEAD:main'], projectPath, token);
 
   // ── Auto-repair the project so the production build cannot fail ──────────
   emit('🔧 Auto-repairing project before build (tsconfig, entry script, build script)...');
@@ -172,7 +198,7 @@ export async function publishToGithub(options: {
 
   // ── Build the app and publish `dist/` to `gh-pages` ─────────────────────
   emit('🏗️ Installing dependencies...');
-  await run('npm install --legacy-peer-deps', projectPath);
+  await runSandboxedProjectCommand(projectPath, 'npm', ['install', '--legacy-peer-deps', '--ignore-scripts'], { network: true });
 
   // GitHub Pages serves from https://<owner>.github.io/<repo>/ so assets must
   // be built with that base path, otherwise the published site is a blank page.
@@ -191,15 +217,12 @@ export async function publishToGithub(options: {
 
     emit('🌐 Publishing to GitHub Pages (gh-pages branch)...');
     const distGit = path.join(distPath, '.git');
-    if (!fs.existsSync(distGit)) await run('git init -b gh-pages', distPath);
-    await run('git add -A', distPath);
-    await runIgnoreError(
-      `git -c user.email="startupforge@local" -c user.name="StartupForge" commit -m "Deploy to GitHub Pages"`,
-      distPath
-    );
-    await runIgnoreError('git remote remove origin', distPath);
-    await run(`git remote add origin ${url}`, distPath);
-    await run('git push origin HEAD:gh-pages --force', distPath);
+    if (!fs.existsSync(distGit)) await run('git', ['init', '-b', 'gh-pages'], distPath);
+    await run('git', [...safeGitConfig, 'add', '-A'], distPath);
+    await runIgnoreError('git', [...safeGitConfig, '-c', 'user.email=startupforge@local', '-c', 'user.name=StartupForge', 'commit', '-m', 'Deploy to GitHub Pages'], distPath);
+    await runIgnoreError('git', ['remote', 'remove', 'origin'], distPath);
+    await run('git', ['remote', 'add', 'origin', url], distPath);
+    await pushWithToken(['push', 'origin', 'HEAD:gh-pages'], distPath, token);
 
     emit('⚙️ Enabling GitHub Pages...');
     await enableGithubPages(token, owner, repo, 'gh-pages');
@@ -309,11 +332,11 @@ function autoRepairForBuild(projectPath: string, emit: (m: string) => void): voi
 async function buildResiliently(projectPath: string, base: string, emit: (m: string) => void): Promise<boolean> {
   emit('🏗️ Building for production...');
   try {
-    await run(`npm run build -- --base=${base}`, projectPath);
+    await runSandboxedProjectCommand(projectPath, 'npm', ['run', 'build', '--', `--base=${base}`]);
   } catch {
     emit('⚠️ Standard build failed — retrying with a direct Vite build (skipping type-check)...');
     try {
-      await run(`npx --yes vite build --base=${base}`, projectPath);
+      await runSandboxedProjectCommand(projectPath, 'npx', ['--yes', 'vite', 'build', `--base=${base}`]);
     } catch (e: any) {
       emit(`❌ Vite build failed: ${String(e.message || e).slice(0, 200)}`);
       return false;
@@ -321,4 +344,3 @@ async function buildResiliently(projectPath: string, base: string, emit: (m: str
   }
   return fs.existsSync(path.join(projectPath, 'dist'));
 }
-

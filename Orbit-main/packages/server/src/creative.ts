@@ -1,7 +1,7 @@
 /* OpenAI-backed creative studio and privacy-safe context ingestion. */
 import type { Express } from 'express';
 import express from 'express';
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import OpenAI, { toFile } from 'openai';
@@ -10,6 +10,7 @@ import { z } from 'zod';
 import pptxgen from 'pptxgenjs';
 import type { MediaJob } from 'orbit-core';
 import { OPENAI_MODELS, normalizeOpenAIError, redactForOpenAI, wrapUntrustedText } from './openaiRuntime.js';
+import { readJson, writeJsonAtomic } from './atomicJson.js';
 
 const PptxGenJS: any = (pptxgen as any).default ?? pptxgen;
 const __dirnameCreative = dirname(fileURLToPath(import.meta.url));
@@ -39,8 +40,7 @@ function saveGenerated(name: string, buf: Buffer): string {
 function uid(): string { return crypto.randomUUID(); }
 
 function readJsonArray<T>(path: string): T[] {
-  if (!existsSync(path)) return [];
-  try { return JSON.parse(readFileSync(path, 'utf8')) as T[]; } catch { return []; }
+  return readJson<T[]>(path, []);
 }
 
 function saveMediaJob(job: MediaJob): void {
@@ -48,7 +48,7 @@ function saveMediaJob(job: MediaJob): void {
   const jobs = readJsonArray<MediaJob>(MEDIA_INDEX_PATH);
   const existing = jobs.findIndex((item) => item.id === job.id);
   if (existing >= 0) jobs[existing] = job; else jobs.push(job);
-  writeFileSync(MEDIA_INDEX_PATH, JSON.stringify(jobs.slice(-250), null, 2));
+  writeJsonAtomic(MEDIA_INDEX_PATH, jobs.slice(-250));
 }
 
 function createMediaJob(workspaceId: string, kind: MediaJob['kind'], model: string, prompt?: string): MediaJob {
@@ -310,7 +310,7 @@ export function registerCreative(app: Express, hooks: Hooks, dependencies: Creat
     }
     const index = readJsonArray<any>(INDEX_PATH);
     index.push({ filename: safeFilename, workspaceId, uploadedAt: new Date().toISOString(), summary: summary || `(binary file retained locally; OCR not enabled: ${safeFilename})`, preview: redacted.slice(0, 200) });
-    writeFileSync(INDEX_PATH, JSON.stringify(index, null, 2));
+    writeJsonAtomic(INDEX_PATH, index);
     hooks.logAgentAction('operations', 'CONTEXT_UPLOADED', `${safeFilename}: privacy gate applied`);
     res.json({ success: true, summary, cloudProcessed: Boolean(redacted) });
   });
