@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { FinancePlanSchema, redactForOpenAI } from '../dist/openaiRuntime.js';
+
+test('privacy gate redacts credentials and common personal identifiers', () => {
+  const value = redactForOpenAI('email founder@example.com phone +91 9876543210 api_key=sk-exampleabcdefghijklmnop PAN ABCDE1234F');
+  assert.doesNotMatch(value, /founder@example\.com/);
+  assert.doesNotMatch(value, /9876543210/);
+  assert.doesNotMatch(value, /sk-example/);
+  assert.doesNotMatch(value, /ABCDE1234F/);
+});
+
+test('finance output requires allocations to sum to 100', () => {
+  const base = { burnRate: 1000, runwayMonths: 12, infrastructureCost: 100, subscriptionCost: 50 };
+  assert.equal(FinancePlanSchema.safeParse({ ...base, budgetAllocations: { engineering: 40, marketing: 30, sales: 20, operations: 10 } }).success, true);
+  assert.equal(FinancePlanSchema.safeParse({ ...base, budgetAllocations: { engineering: 40, marketing: 30, sales: 20, operations: 20 } }).success, false);
+});

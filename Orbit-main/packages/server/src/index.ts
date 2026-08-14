@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { registerCreative } from './creative.js';
-import { exec } from 'child_process';
+import { normalizeOpenAIError, refineFinancePlan, runDepartmentAgent, type OrbitDepartment } from './openaiRuntime.js';
 
 const __dirnameServer = dirname(fileURLToPath(import.meta.url));
 
@@ -230,13 +230,15 @@ app.post('/api/vault', (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/launch-startupforge', (req, res) => {
-  exec('start "" "d:\\google deepmind\\startupforge\\start.bat"', { cwd: 'd:\\google deepmind\\startupforge' }, (error) => {
-    if (error) {
-      console.error(`Error launching StartupForge: ${error.message}`);
-    }
-  });
-  res.json({ success: true });
+app.post('/api/launch-startupforge', async (req, res) => {
+  const baseUrl = process.env.STARTUPFORGE_URL || 'http://127.0.0.1:3001';
+  try {
+    const response = await fetch(`${baseUrl}/api/health`);
+    if (!response.ok) throw new Error(`StartupForge returned HTTP ${response.status}`);
+    res.json({ success: true, url: baseUrl, mode: 'http' });
+  } catch (error) {
+    res.status(503).json({ success: false, error: 'StartupForge is not reachable. Start its server and try again.' });
+  }
 });
 
 // -----------------------------------------------------------------
@@ -582,17 +584,15 @@ app.post('/api/context/complete', (req, res) => {
   res.json({ success: true, nextDepartment: nextDept });
 });
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-
 /* Final agent roster — a smart ecosystem for building AND scaling a real
    business. Departments removed from the dashboard keep no prompt here. */
 const AGENT_SYSTEM_PROMPTS: Record<string, string> = {
-  research: "You are the Research Agent with LIVE Google Search access. Do REAL research: current market sizes with sources, named competitors with actual prices, regulatory facts, demand signals. Debate the founder — why build this, who pays, why now. Ground every claim in what you actually find via search; cite what you found. Suggest both how to validate the idea AND how to scale it once validated.",
+  research: "You are the Research Agent with OpenAI web search access. Do REAL research: current market sizes with sources, named competitors with actual prices, regulatory facts, demand signals. Debate the founder — why build this, who pays, why now. Ground every claim in what you actually find via search; cite what you found. Suggest both how to validate the idea AND how to scale it once validated.",
   finance: "You are the Financial Support Agent (CFO). Real-world money help: runway, burn, unit economics, pricing, GST/tax planning for Indian founders, funding options (bootstrapping vs angels vs schemes like Startup India seed fund). If budget is small, force cheaper setups and compute exact runway. Always show the math. Advise on scaling costs too: what breaks financially at 10x volume.",
-  marketing: "You are the Marketing & Growth Agent. GTM plans, campaign ideas, growth loops, and channel strategy for real Indian + global markets. You are connected to a poster studio (Nano Banana image generation) and an ad-kit generator — when the founder wants creatives, tell them to use the Studio tab and propose the exact prompts to use. Focus on what scales: CAC vs LTV, organic loops, retention.",
+  marketing: "You are the Marketing & Growth Agent. GTM plans, campaign ideas, growth loops, and channel strategy for real Indian + global markets. You are connected to an OpenAI image studio and a Sora-backed ad-kit adapter — when the founder wants creatives, tell them to use the Studio tab and propose the exact prompts to use. Focus on what scales: CAC vs LTV, organic loops, retention.",
   creative: "You are the Caption & Voice Agent. You write scroll-stopping captions (Instagram/LinkedIn/WhatsApp, in English + Hindi + regional languages when asked), ad scripts with hooks in the first 2 seconds, and voiceover scripts. You are wired to a TTS engine for real voiceovers — keep VO scripts under 40 words unless asked.",
   deck: "You are the Pitch Deck Agent. You build investor-grade decks: 10-slide structure (problem, solution, market, product, traction, model, competition, team, financials, ask). You are wired to a PPTX generator — produce tight, specific slide content from the live shared context (use the other agents' actual findings, not lorem ipsum).",
-  code: "You are the Code Support Agent (integration point for Ashish's Antigravity track). For now: advise on tech stack, app architecture, and deployment for the founder's product; note that direct code-editing automation lands when the Antigravity integration ships.",
+  code: "You are the Build Agent. Turn approved business requirements into implementation-ready specifications for StartupForge's resumable Codex SDK workflow.",
   conflict: "You are the Executive Board Mediator. Resolve disputes between agents, detail tradeoffs, and suggest compromises to unlock execution.",
   operations: "You are the COO of Orbit. Own the roadmap, stage gates, and timelines across all agents. Direct, pragmatic, organized."
 };
@@ -625,73 +625,6 @@ ${activity || '- (no activity yet)'}
 
 Founder-uploaded context documents:
 ${docs || '- (none uploaded yet)'}`;
-}
-
-// Call Gemini API helper — real model, key via header, optional Google
-// Search grounding for agents that need live real-world data.
-async function callGemini(
-  systemInstruction: string,
-  userMessage: string,
-  chatHistory: string,
-  contextData: any,
-  opts: { useSearch?: boolean; workspaceId?: string } = {}
-): Promise<string> {
-  const model = 'gemini-3.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
-  const systemPrompt = `System Role Context:
-${systemInstruction}
-
-You are one agent in Orbit — an ecosystem of AI agents helping real-world founders build AND scale businesses. Be concrete and actionable: real numbers, real next steps, real Indian-market context where relevant. Coordinate with the other agents' work shown below instead of duplicating it.
-
-Active Startup Context Snapshot:
-- Company Name: ${contextData.companyName}
-- Target Market: ${contextData.business.targetMarket}
-- Niche: ${contextData.business.niche}
-- Stage: ${contextData.business.stage}
-- Runway: ${contextData.financials.runwayMonths} months
-- Burn Rate: $${contextData.financials.burnRate}/mo
-- Vision: ${contextData.founderProfile.vision}
-
-${getSharedAgentContext(opts.workspaceId || 'default-workspace')}
-
-Chat History Memory:
-${chatHistory}
-
-Founder: ${userMessage}
-Agent:`;
-
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: systemPrompt }]
-          }
-        ],
-        ...(opts.useSearch ? { tools: [{ google_search: {} }] } : {}),
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2500
-        }
-      })
-    });
-    
-    if (!res.ok) {
-      console.warn(`Gemini API returned status ${res.status}. Using local mock logic.`);
-      return '';
-    }
-    
-    const data = await res.json() as any;
-    // Grounded responses can span multiple parts — join them all
-    const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('');
-    return text ? text.trim() : '';
-  } catch (err) {
-    console.error('Gemini API call failed:', err);
-    return '';
-  }
 }
 
 // Brand Pitch Deck Endpoints
@@ -730,7 +663,7 @@ app.get('/api/finance/excel', (req, res) => {
     ['Cash Runway', `${ctx.financials.runwayMonths} Months`, 'Duration before funding required'],
     ['Burn Rate', `$${ctx.financials.burnRate}`, 'Average monthly outgoings'],
     ['Stitch Cloud Hosting', `$${ctx.financials.infrastructureCost}`, 'Infrastructure operational cost'],
-    ['Agent SaaS Keys', `$${ctx.financials.subscriptionCost}`, 'Gemini context sync subscriptions'],
+    ['Agent SaaS Keys', `$${ctx.financials.subscriptionCost}`, 'OpenAI agent and media subscriptions'],
     [],
     ['Budget Allocations (%)'],
     ['Department', 'Allocation Percentage'],
@@ -747,7 +680,7 @@ app.get('/api/finance/excel', (req, res) => {
   res.send(csvContent);
 });
 
-// Finance spreadsheet refinement API using Gemini
+// Finance spreadsheet refinement API using a typed OpenAI Agents SDK output.
 app.post('/api/finance/refine', async (req, res) => {
   const { workspaceId = 'default-workspace', prompt } = req.body;
   if (!prompt) {
@@ -756,44 +689,14 @@ app.post('/api/finance/refine', async (req, res) => {
 
   const ctx = getContext(workspaceId);
   
-  // Call Gemini to refine metrics
-  const systemInstruction = `You are a startup CFO. The founder wants to refine the budget based on this prompt: "${prompt}". 
-Format the response ONLY as a clean, single-line JSON block containing exactly the keys:
-- burnRate (number)
-- runwayMonths (number)
-- infrastructureCost (number)
-- subscriptionCost (number)
-- budgetAllocations (object with keys: engineering, marketing, sales, operations as numbers sum to 100)`;
-
-  const responseText = await callGemini(systemInstruction, `Update the budget plan accordingly: ${prompt}`, "", ctx);
-  
-  if (responseText) {
-    try {
-      // Find JSON block in output
-      const jsonStart = responseText.indexOf('{');
-      const jsonEnd = responseText.lastIndexOf('}');
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        const jsonStr = responseText.substring(jsonStart, jsonEnd + 1);
-        const parsed = JSON.parse(jsonStr);
-        
-        if (typeof parsed.burnRate === 'number') ctx.financials.burnRate = parsed.burnRate;
-        if (typeof parsed.runwayMonths === 'number') ctx.financials.runwayMonths = parsed.runwayMonths;
-        if (typeof parsed.infrastructureCost === 'number') ctx.financials.infrastructureCost = parsed.infrastructureCost;
-        if (typeof parsed.subscriptionCost === 'number') ctx.financials.subscriptionCost = parsed.subscriptionCost;
-        if (parsed.budgetAllocations) {
-          ctx.financials.budgetAllocations = {
-            engineering: parsed.budgetAllocations.engineering || ctx.financials.budgetAllocations.engineering,
-            marketing: parsed.budgetAllocations.marketing || ctx.financials.budgetAllocations.marketing,
-            sales: parsed.budgetAllocations.sales || ctx.financials.budgetAllocations.sales,
-            operations: parsed.budgetAllocations.operations || ctx.financials.budgetAllocations.operations,
-          };
-        }
-        
-        saveContext(workspaceId, ctx);
-      }
-    } catch (err) {
-      console.error('Failed to parse refined financial JSON from Gemini:', err);
-    }
+  try {
+    const parsed = await refineFinancePlan(prompt, ctx);
+    ctx.financials = { ...ctx.financials, ...parsed };
+    saveContext(workspaceId, ctx);
+  } catch (error) {
+    const traceId = crypto.randomUUID();
+    const normalized = normalizeOpenAIError(error, traceId);
+    return res.status(process.env.OPENAI_API_KEY ? 502 : 503).json({ success: false, error: normalized });
   }
 
   res.json({ success: true, context: ctx });
@@ -862,14 +765,26 @@ Please navigate to the **Conflict Center** in the sidebar and resolve this dispu
     return res.json({ response: blockMsg });
   }
 
-  // 3. Try Gemini API first for high-quality conversational responses.
-  //    Research gets live Google Search grounding for real-world data.
+  // 3. Run a real OpenAI specialist. Research and marketing have web search.
   const dept = department.toLowerCase();
-  const systemPrompt = AGENT_SYSTEM_PROMPTS[dept] || `You are the ${department} agent.`;
-  const apiResponse = await callGemini(systemPrompt, message, chatHistory, ctx, {
-    useSearch: dept === 'research' || dept === 'marketing',
-    workspaceId,
-  });
+  const aliases: Record<string, OrbitDepartment> = { validation: 'research', creative: 'marketing', deck: 'brand' };
+  const agentDepartment = (aliases[dept] || dept) as OrbitDepartment;
+  let apiResponse = '';
+  let traceId: string | undefined;
+  try {
+    const result = await runDepartmentAgent({
+      department: agentDepartment,
+      message: `${AGENT_SYSTEM_PROMPTS[dept] || ''}\n\n${message}`,
+      chatHistory,
+      context: ctx,
+      sharedContext: getSharedAgentContext(workspaceId),
+    });
+    apiResponse = result.output;
+    traceId = result.traceId;
+  } catch (error) {
+    const normalized = normalizeOpenAIError(error, crypto.randomUUID());
+    console.warn(`OpenAI agent unavailable (${normalized.code}, trace ${normalized.traceId}); using offline demo response.`);
+  }
   
   if (apiResponse) {
     // If user provides a budget limit, let's capture it dynamically in the SQLite context too
@@ -893,13 +808,13 @@ Please navigate to the **Conflict Center** in the sidebar and resolve this dispu
       department.toLowerCase(),
       'founder',
       'CHAT_MESSAGE',
-      JSON.stringify({ response: apiResponse })
+      JSON.stringify({ response: apiResponse, traceId })
     );
 
-    return res.json({ response: apiResponse });
+    return res.json({ response: apiResponse, traceId });
   }
 
-  // 4. Fallback to standard simulated response if Gemini API fails
+  // 4. Explicit offline-demo fallback when OpenAI is unavailable.
   let response = '';
 
   switch (department.toLowerCase()) {
@@ -923,7 +838,7 @@ Let's analyze product market fit for *${ctx.companyName}* (Feasibility Score: **
     case 'competitor':
       response = `### Competitor Intelligence Ledger
 Reviewing direct competitors in the **${ctx.business.niche}** sector:
-- **Incumbent Gaps**: Most competitors rely on public APIs. Our local-first private memory vault (Gemma 4) is our primary USP.
+- **Incumbent Gaps**: Most competitors rely on public APIs. Our deterministic privacy gate and local raw-document storage are key differentiators.
 - **Pricing Gap Opportunity**: Competing services charge per-agent seat. We can disrupt them by charging based on workspace consumption, making it 40% cheaper for small teams.
 - **Positioning**: "The only private, off-grid AI operating system for scaling teams."`;
       break;
@@ -948,7 +863,7 @@ You entered a budget restriction of **₹${amount} Lakhs**. Here is our CFO plan
 Reviewing active numbers:
 - **Remaining Runway**: **${ctx.financials.runwayMonths} Months**.
 - **Monthly Burn**: **$${ctx.financials.burnRate}/month**.
-- **Infra/Sub Allocation**: **$${ctx.financials.infrastructureCost}/mo** Stitch nodes, **$${ctx.financials.subscriptionCost}/mo** Gemini keys.
+- **Infra/Sub Allocation**: **$${ctx.financials.infrastructureCost}/mo** infrastructure, **$${ctx.financials.subscriptionCost}/mo** OpenAI usage.
 *Please specify your startup budget (e.g. "My budget is ₹3 Lakhs") so I can generate a customized financial planner.*`;
       }
       break;
@@ -958,7 +873,7 @@ Reviewing active numbers:
 Reviewing corporate parameters:
 - **Required licenses**: We must register under GST local tax guidelines and create GDPR cookie consent policies.
 - **Trademark risk**: The name *"${ctx.companyName}"* has low direct conflicts, but we should secure the domain registration immediately.
-- Mapped compliance checklist and founder agreements inside the Gemma secure database.`;
+- Mapped compliance checklist and founder agreements inside the local secure database.`;
       break;
 
     case 'brand':
@@ -1009,7 +924,7 @@ Build validation results:
 Let's coordinate GTM campaigns for *${ctx.companyName}*:
 - **Inspirational Reference**: Look at how **Slack** launched using invite-only previews, or how **Figma** grew through local design communities instead of paid ads. These worked because they built high organic word-of-mouth loops.
 - **Original Campaign proposal**: We will launch a *Product Hunt invite-only early beta*. This leverages curiosity and ensures our small budget is spent on product rather than paid ads.
-- **Nano Banana Assets**: Run the **Generate via Nano Banana** panel on the right to render lifestyle photography mockups and link our Instagram scheduler!`;
+- **OpenAI Image Assets**: Use the poster panel to render lifestyle photography mockups. Publishing still requires explicit approval.`;
       break;
 
     case 'sales':

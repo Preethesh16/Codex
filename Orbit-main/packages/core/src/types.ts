@@ -39,7 +39,7 @@ export interface MarketingCampaign {
   impressionsSimulated: number;
   viralScore: number;
   content: string;
-  generatedAssets: string[]; // Nano Banana image URLs
+  generatedAssets: string[]; // Persisted creative asset URLs
 }
 
 export interface MarketingContext {
@@ -147,4 +147,49 @@ export interface AuditLog {
   action: string;
   details: string;
   timestamp: string;
+}
+
+export interface AgentRun {
+  id: string;
+  workspaceId: string;
+  agent: string;
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'awaiting_approval';
+  traceId: string;
+  citations: Array<{ title?: string; url: string }>;
+  toolCalls: Array<{ name: string; status: 'requested' | 'approved' | 'rejected' | 'completed' | 'failed' }>;
+  approvalIds: string[];
+  usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+  output?: unknown;
+  error?: { code: string; message: string; retryable: boolean };
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface ToolApproval {
+  id: string;
+  workspaceId: string;
+  runId: string;
+  toolName: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  requestedAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+}
+
+export interface MediaJob {
+  id: string;
+  workspaceId: string;
+  kind: 'image' | 'image_edit' | 'video' | 'voiceover' | 'storyboard';
+  provider: 'openai' | 'local';
+  model: string;
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'fallback';
+  prompt?: string;
+  providerJobId?: string;
+  outputPaths: string[];
+  traceId: string;
+  usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+  error?: { code: string; message: string; retryable: boolean };
+  createdAt: string;
+  updatedAt: string;
 }

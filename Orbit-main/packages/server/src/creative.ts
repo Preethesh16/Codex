@@ -1,62 +1,27 @@
-/* Creative studio + context-upload endpoints.
-   Real integrations: Nano Banana (posters), Gemini TTS (voiceover),
-   Veo 3.1 (ad video, with storyboard fallback), pptxgenjs (deck),
-   gemini-3.5-flash (captions/summaries). Key comes from .env only. */
+/* OpenAI-backed creative studio and privacy-safe context ingestion. */
 import type { Express } from 'express';
 import express from 'express';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import OpenAI from 'openai';
+import { Agent, run } from '@openai/agents';
+import { z } from 'zod';
 import pptxgen from 'pptxgenjs';
-// CJS/ESM interop: the runtime default export is the constructor
-const PptxGenJS: any = (pptxgen as any).default ?? pptxgen;
+import type { MediaJob } from 'orbit-core';
+import { OPENAI_MODELS, normalizeOpenAIError, redactForOpenAI } from './openaiRuntime.js';
 
+const PptxGenJS: any = (pptxgen as any).default ?? pptxgen;
 const __dirnameCreative = dirname(fileURLToPath(import.meta.url));
 const GEN_DIR = join(__dirnameCreative, '../uploads/generated');
 const UPLOAD_DIR = join(__dirnameCreative, '../uploads');
 const INDEX_PATH = join(UPLOAD_DIR, 'index.json');
+const MEDIA_INDEX_PATH = join(UPLOAD_DIR, 'media-jobs.json');
 
-const API = 'https://generativelanguage.googleapis.com/v1beta';
-const key = () => process.env.GEMINI_API_KEY || '';
-
-async function gemini(model: string, body: any): Promise<any> {
-  const res = await fetch(`${API}/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key() },
-    body: JSON.stringify(body),
-  });
-  return res.json();
-}
-
-function textOf(data: any): string {
-  return data.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('') || '';
-}
-
-function jsonOf(data: any): any {
-  const t = textOf(data);
-  const s = t.indexOf('{') !== -1 ? t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1) : '';
-  const a = t.indexOf('[') !== -1 ? t.slice(t.indexOf('['), t.lastIndexOf(']') + 1) : '';
-  try { return JSON.parse(s.length > a.length ? s : a); } catch { try { return JSON.parse(a || s); } catch { return null; } }
-}
-
-/* 16-bit PCM mono → WAV container */
-function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {
-  const header = Buffer.alloc(44);
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + pcm.length, 4);
-  header.write('WAVE', 8);
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20);
-  header.writeUInt16LE(1, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(sampleRate * 2, 28);
-  header.writeUInt16LE(2, 32);
-  header.writeUInt16LE(16, 34);
-  header.write('data', 36);
-  header.writeUInt32LE(pcm.length, 40);
-  return Buffer.concat([header, pcm]);
-}
+const client = () => {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured');
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 60_000, maxRetries: 2 });
+};
 
 function saveGenerated(name: string, buf: Buffer): string {
   mkdirSync(GEN_DIR, { recursive: true });
@@ -64,8 +29,42 @@ function saveGenerated(name: string, buf: Buffer): string {
   return `/generated/${name}`;
 }
 
-function uid(): string {
-  return Math.random().toString(36).substring(2, 9);
+function uid(): string { return crypto.randomUUID(); }
+
+function readJsonArray<T>(path: string): T[] {
+  if (!existsSync(path)) return [];
+  try { return JSON.parse(readFileSync(path, 'utf8')) as T[]; } catch { return []; }
+}
+
+function saveMediaJob(job: MediaJob): void {
+  mkdirSync(UPLOAD_DIR, { recursive: true });
+  const jobs = readJsonArray<MediaJob>(MEDIA_INDEX_PATH);
+  const existing = jobs.findIndex((item) => item.id === job.id);
+  if (existing >= 0) jobs[existing] = job; else jobs.push(job);
+  writeFileSync(MEDIA_INDEX_PATH, JSON.stringify(jobs.slice(-250), null, 2));
+}
+
+function createMediaJob(workspaceId: string, kind: MediaJob['kind'], model: string, prompt?: string): MediaJob {
+  const now = new Date().toISOString();
+  const job: MediaJob = { id: uid(), workspaceId, kind, provider: 'openai', model, status: 'queued', prompt: prompt ? redactForOpenAI(prompt) : undefined, outputPaths: [], traceId: uid(), createdAt: now, updatedAt: now };
+  saveMediaJob(job);
+  return job;
+}
+
+function updateMediaJob(job: MediaJob, patch: Partial<MediaJob>): MediaJob {
+  Object.assign(job, patch, { updatedAt: new Date().toISOString() });
+  saveMediaJob(job);
+  return job;
+}
+
+const CaptionSchema = z.object({ captions: z.array(z.string()).min(1).max(5), voScript: z.string().max(500) });
+const StoryboardSchema = z.object({ shots: z.array(z.object({ scene: z.string(), onScreenText: z.string(), durationSec: z.number().positive().max(12) })).min(3).max(8) });
+const DeckSchema = z.object({ slides: z.array(z.object({ title: z.string(), bullets: z.array(z.string()).min(1).max(6) })).min(5).max(12) });
+
+async function structured<T extends z.ZodObject<any>>(name: string, instructions: string, prompt: string, schema: T): Promise<z.infer<T>> {
+  const agent = new Agent({ name, instructions, model: OPENAI_MODELS.specialist, outputType: schema });
+  const result = await run(agent, redactForOpenAI(prompt), { maxTurns: 4 });
+  return schema.parse(result.finalOutput);
 }
 
 type Hooks = {
@@ -74,190 +73,171 @@ type Hooks = {
   logAgentAction: (sender: string, action: string, detail: string) => void;
 };
 
+async function storyboardFor(companyName: string, product: string) {
+  return structured('Orbit Storyboard Director', 'Create a concise, producible product-ad storyboard.', `Brand: ${companyName}\nProduct: ${product}\nCreate a five-shot, eight-second total storyboard.`, StoryboardSchema);
+}
+
 export function registerCreative(app: Express, hooks: Hooks) {
   app.use('/generated', express.static(GEN_DIR));
 
-  // ── Marketing Agent → Nano Banana posters (multiple options) ──────────
+  app.get('/api/media/jobs', (req, res) => {
+    const workspaceId = String(req.query.workspaceId || 'default-workspace');
+    res.json(readJsonArray<MediaJob>(MEDIA_INDEX_PATH).filter((job) => job.workspaceId === workspaceId));
+  });
+
+  app.get('/api/media/jobs/:id', (req, res) => {
+    const job = readJsonArray<MediaJob>(MEDIA_INDEX_PATH).find((item) => item.id === req.params.id);
+    if (!job) return res.status(404).json({ error: 'media job not found' });
+    res.json(job);
+  });
+
   app.post('/api/marketing/poster', async (req, res) => {
     const { prompt, count = 2, workspaceId = 'default-workspace' } = req.body;
     if (!prompt) return res.status(400).json({ error: 'prompt required' });
     const ctx = hooks.getContext(workspaceId);
-    const full = `Professional marketing poster for "${ctx.companyName}". ${prompt}. High-quality advertising design, striking composition, readable typography.`;
-
-    const options: { url: string }[] = [];
-    const attempts = Math.min(Number(count) || 2, 3);
-    const results = await Promise.all(
-      Array.from({ length: attempts }, (_, i) =>
-        gemini('nano-banana-pro-preview', {
-          contents: [{ parts: [{ text: `${full} Variation ${i + 1}: ${i === 0 ? 'bold and loud' : i === 1 ? 'minimal and premium' : 'vibrant street style'}.` }] }],
-        }).catch(() => null)
-      )
-    );
-    for (const r of results) {
-      const img = r?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-      if (img) {
-        const ext = img.inlineData.mimeType.includes('png') ? 'png' : 'jpg';
-        options.push({ url: saveGenerated(`poster-${uid()}.${ext}`, Buffer.from(img.inlineData.data, 'base64')) });
-      }
+    const fullPrompt = `Professional marketing poster for "${ctx.companyName}". ${prompt}. Striking composition, legible typography, no unsupported public claims.`;
+    const job = createMediaJob(workspaceId, 'image', OPENAI_MODELS.image, fullPrompt);
+    updateMediaJob(job, { status: 'running' });
+    try {
+      const attempts = Math.min(Math.max(Number(count) || 2, 1), 3);
+      const responses = await Promise.all(Array.from({ length: attempts }, (_, index) => client().images.generate({
+        model: OPENAI_MODELS.image,
+        prompt: redactForOpenAI(`${fullPrompt} Variation ${index + 1}: ${['bold and energetic', 'minimal and premium', 'vibrant editorial'][index]}.`),
+        size: '1024x1024', quality: 'medium', output_format: 'png',
+      })));
+      const options = responses.flatMap((response) => response.data || []).flatMap((image) => image.b64_json ? [{ url: saveGenerated(`poster-${uid()}.png`, Buffer.from(image.b64_json, 'base64')) }] : []);
+      if (!options.length) throw new Error('Image generation returned no image data');
+      updateMediaJob(job, { status: 'completed', outputPaths: options.map((option) => option.url) });
+      hooks.logAgentAction('marketing', 'POSTER_GENERATED', `${options.length} OpenAI poster options`);
+      res.json({ options, jobId: job.id });
+    } catch (error) {
+      const normalized = normalizeOpenAIError(error, job.traceId);
+      updateMediaJob(job, { status: 'failed', error: normalized });
+      res.status(502).json({ error: 'Image generation failed', jobId: job.id, detail: normalized });
     }
-    if (!options.length) return res.status(502).json({ error: 'Image generation failed — try a different prompt' });
-    hooks.logAgentAction('marketing', 'POSTER_GENERATED', `${options.length} poster options: ${prompt.slice(0, 80)}`);
-    res.json({ options });
   });
 
-  // ── Caption & Voice Agent → captions + VO script ──────────────────────
   app.post('/api/creative/captions', async (req, res) => {
     const { product, platform = 'Instagram', language = 'English', workspaceId = 'default-workspace' } = req.body;
     if (!product) return res.status(400).json({ error: 'product required' });
     const ctx = hooks.getContext(workspaceId);
-    const data = await gemini('gemini-3.5-flash', {
-      contents: [{ parts: [{ text:
-`You are the Caption & Voice Agent for ${ctx.companyName}.
-${hooks.getSharedContext(workspaceId)}
-
-Write for: ${product}. Platform: ${platform}. Language: ${language}.
-Return ONLY JSON: {"captions":["3 scroll-stopping caption options with hooks + hashtags"],"voScript":"a punchy voiceover script under 40 words"}` }] }],
-      generationConfig: { temperature: 0.9, maxOutputTokens: 2500 },
-    });
-    const parsed = jsonOf(data);
-    if (!parsed?.captions) return res.status(502).json({ error: 'caption generation failed' });
-    hooks.logAgentAction('creative', 'CAPTIONS_GENERATED', `${platform}/${language}: ${product.slice(0, 80)}`);
-    res.json(parsed);
+    try {
+      const result = await structured('Orbit Caption Writer', 'Write specific, ethical, high-conversion social copy and a voiceover under 40 words.', `Brand: ${ctx.companyName}\nProduct: ${product}\nPlatform: ${platform}\nLanguage: ${language}\nShared context:\n${hooks.getSharedContext(workspaceId)}`, CaptionSchema);
+      hooks.logAgentAction('creative', 'CAPTIONS_GENERATED', `${platform}/${language}`);
+      res.json(result);
+    } catch (error) {
+      res.status(502).json({ error: 'caption generation failed', detail: normalizeOpenAIError(error, uid()) });
+    }
   });
 
-  // ── Caption & Voice Agent → real TTS voiceover ─────────────────────────
   app.post('/api/creative/voiceover', async (req, res) => {
-    const { text, voice = 'Kore' } = req.body;
+    const { text, voice = 'alloy', workspaceId = 'default-workspace' } = req.body;
     if (!text) return res.status(400).json({ error: 'text required' });
-    const data = await gemini('gemini-2.5-flash-preview-tts', {
-      contents: [{ parts: [{ text: `Say in an energetic ad-voiceover tone: ${text}` }] }],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-      },
-    });
-    const aud = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-    if (!aud) return res.status(502).json({ error: 'TTS failed', detail: JSON.stringify(data).slice(0, 200) });
-    const rate = parseInt(aud.inlineData.mimeType.match(/rate=(\d+)/)?.[1] || '24000', 10);
-    const url = saveGenerated(`voiceover-${uid()}.wav`, pcmToWav(Buffer.from(aud.inlineData.data, 'base64'), rate));
-    hooks.logAgentAction('creative', 'VOICEOVER_GENERATED', text.slice(0, 80));
-    res.json({ url });
+    const job = createMediaJob(workspaceId, 'voiceover', OPENAI_MODELS.speech, text);
+    updateMediaJob(job, { status: 'running' });
+    try {
+      const allowedVoices = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'onyx', 'nova', 'sage', 'shimmer', 'verse', 'marin', 'cedar']);
+      const response = await client().audio.speech.create({ model: OPENAI_MODELS.speech, voice: allowedVoices.has(voice) ? voice : 'alloy', input: redactForOpenAI(String(text)).slice(0, 4096), response_format: 'mp3' });
+      const url = saveGenerated(`voiceover-${uid()}.mp3`, Buffer.from(await response.arrayBuffer()));
+      updateMediaJob(job, { status: 'completed', outputPaths: [url] });
+      hooks.logAgentAction('creative', 'VOICEOVER_GENERATED', 'OpenAI voiceover generated');
+      res.json({ url, jobId: job.id });
+    } catch (error) {
+      const normalized = normalizeOpenAIError(error, job.traceId);
+      updateMediaJob(job, { status: 'failed', error: normalized });
+      res.status(502).json({ error: 'TTS failed', jobId: job.id, detail: normalized });
+    }
   });
 
-  // ── Marketing Agent → ad kit: captions + Veo video (storyboard fallback)
   app.post('/api/marketing/adkit', async (req, res) => {
     const { product, workspaceId = 'default-workspace' } = req.body;
     if (!product) return res.status(400).json({ error: 'product required' });
     const ctx = hooks.getContext(workspaceId);
-
-    // Kick off Veo and captions in parallel
-    const veoPromise = (async () => {
-      try {
-        const start = await fetch(`${API}/models/veo-3.1-fast-generate-preview:predictLongRunning`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key() },
-          body: JSON.stringify({ instances: [{ prompt: `8 second dynamic product ad for ${ctx.companyName}: ${product}. Energetic, modern, cinematic.` }] }),
-        }).then(r => r.json());
-        if (!start.name) return null;
-        for (let i = 0; i < 18; i++) {
-          await new Promise(r => setTimeout(r, 5000));
-          const op = await fetch(`${API}/${start.name}`, { headers: { 'x-goog-api-key': key() } }).then(r => r.json());
-          if (op.done) {
-            const uri = op.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri
-              || op.response?.generatedVideos?.[0]?.video?.uri;
-            if (!uri) return null;
-            const vid = await fetch(uri, { headers: { 'x-goog-api-key': key() } });
-            if (!vid.ok) return null;
-            return saveGenerated(`ad-${uid()}.mp4`, Buffer.from(await vid.arrayBuffer()));
-          }
-        }
-      } catch { /* fall through to storyboard */ }
-      return null;
-    })();
-
-    const storyboardPromise = gemini('gemini-3.5-flash', {
-      contents: [{ parts: [{ text: `Create a 5-shot ad video storyboard for: ${product} (brand: ${ctx.companyName}). Return ONLY JSON: {"shots":[{"scene":"...","onScreenText":"...","durationSec":2}]}` }] }],
-    }).then(jsonOf).catch(() => null);
-
-    const [videoUrl, storyboard] = await Promise.all([veoPromise, storyboardPromise]);
-    hooks.logAgentAction('marketing', 'ADKIT_GENERATED', `${product.slice(0, 60)} — video: ${videoUrl ? 'rendered' : 'storyboard only'}`);
-    res.json({ video: videoUrl, storyboard: storyboard?.shots || [], note: videoUrl ? 'Veo video rendered' : 'Veo unavailable on this key/quota — storyboard provided; retry later' });
+    const videoPrompt = `Eight-second modern product advertisement for ${ctx.companyName}: ${product}. Cinematic, energetic, no unsupported claims.`;
+    const job = createMediaJob(workspaceId, 'video', OPENAI_MODELS.video, videoPrompt);
+    updateMediaJob(job, { status: 'running' });
+    let storyboard: z.infer<typeof StoryboardSchema> = { shots: [] };
+    try { storyboard = await storyboardFor(ctx.companyName, product); } catch { /* deterministic fallback below */ }
+    if (!storyboard.shots.length) storyboard = { shots: [{ scene: 'Product problem', onScreenText: 'The pain', durationSec: 2 }, { scene: 'Product reveal', onScreenText: ctx.companyName, durationSec: 2 }, { scene: 'Primary benefit', onScreenText: 'Built for you', durationSec: 2 }, { scene: 'Call to action', onScreenText: 'Learn more', durationSec: 2 }] };
+    try {
+      let video = await client().videos.create({ model: OPENAI_MODELS.video, prompt: redactForOpenAI(videoPrompt), seconds: '8', size: '1280x720' });
+      updateMediaJob(job, { providerJobId: video.id });
+      for (let attempt = 0; attempt < 10 && (video.status === 'queued' || video.status === 'in_progress'); attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        video = await client().videos.retrieve(video.id);
+      }
+      if (video.status !== 'completed') throw new Error(video.error?.message || `Video remains ${video.status}`);
+      const content = await client().videos.downloadContent(video.id);
+      const url = saveGenerated(`ad-${uid()}.mp4`, Buffer.from(await content.arrayBuffer()));
+      updateMediaJob(job, { status: 'completed', outputPaths: [url] });
+      hooks.logAgentAction('marketing', 'ADKIT_GENERATED', 'Sora video rendered');
+      res.json({ video: url, storyboard: storyboard.shots, note: 'Sora video rendered', jobId: job.id });
+    } catch (error) {
+      const normalized = normalizeOpenAIError(error, job.traceId);
+      updateMediaJob(job, { status: 'fallback', model: OPENAI_MODELS.specialist, kind: 'storyboard', error: normalized });
+      hooks.logAgentAction('marketing', 'ADKIT_FALLBACK', 'Sora unavailable; storyboard supplied');
+      res.json({ video: null, storyboard: storyboard.shots, note: 'Sora unavailable or incomplete — storyboard fallback provided', jobId: job.id });
+    }
   });
 
-  // ── Pitch Deck Agent → real PPTX from live shared context ─────────────
   app.post('/api/deck/generate', async (req, res) => {
     const { workspaceId = 'default-workspace', focus = '' } = req.body;
     const ctx = hooks.getContext(workspaceId);
-    const data = await gemini('gemini-3.5-flash', {
-      contents: [{ parts: [{ text:
-`You are the Pitch Deck Agent for ${ctx.companyName} (${ctx.business.niche}, targeting ${ctx.business.targetMarket}).
-${hooks.getSharedContext(workspaceId)}
-${focus ? `Founder's focus request: ${focus}` : ''}
-
-Build a 10-slide investor deck grounded in the context above (use the other agents' actual findings).
-Return ONLY JSON: {"slides":[{"title":"...","bullets":["3-4 short specific bullets"]}]}` }] }],
-      generationConfig: { maxOutputTokens: 4000 },
-    });
-    const parsed = jsonOf(data);
-    if (!parsed?.slides?.length) return res.status(502).json({ error: 'deck content generation failed' });
-
-    const pptx = new PptxGenJS();
-    pptx.defineLayout({ name: 'WIDE', width: 13.3, height: 7.5 });
-    pptx.layout = 'WIDE';
-    const title = pptx.addSlide();
-    title.background = { color: '111111' };
-    title.addText(ctx.companyName, { x: 0.8, y: 2.6, w: 11.7, h: 1.2, fontSize: 54, bold: true, color: 'FFFFFF', fontFace: 'Arial' });
-    title.addText(ctx.founderProfile.vision || ctx.business.niche, { x: 0.8, y: 4.0, w: 11.7, h: 0.8, fontSize: 20, color: 'FFB59B', fontFace: 'Arial' });
-    for (const s of parsed.slides.slice(0, 12)) {
-      const slide = pptx.addSlide();
-      slide.background = { color: 'FFF8F6' };
-      slide.addText(String(s.title || ''), { x: 0.8, y: 0.5, w: 11.7, h: 1.0, fontSize: 32, bold: true, color: 'A53600', fontFace: 'Arial' });
-      slide.addText((s.bullets || []).map((b: string) => ({ text: String(b), options: { bullet: true, breakLine: true } })), { x: 0.9, y: 1.8, w: 11.5, h: 5.0, fontSize: 18, color: '261814', fontFace: 'Arial', lineSpacing: 32 });
+    try {
+      const parsed = await structured('Orbit Pitch Deck Writer', 'Create a grounded, investor-grade deck. Do not invent traction, customers, or financial results.', `Company: ${ctx.companyName}\nNiche: ${ctx.business.niche}\nTarget: ${ctx.business.targetMarket}\nFocus: ${focus}\nShared context:\n${hooks.getSharedContext(workspaceId)}`, DeckSchema);
+      const pptx = new PptxGenJS();
+      pptx.defineLayout({ name: 'WIDE', width: 13.3, height: 7.5 });
+      pptx.layout = 'WIDE';
+      const title = pptx.addSlide();
+      title.background = { color: '111111' };
+      title.addText(ctx.companyName, { x: 0.8, y: 2.6, w: 11.7, h: 1.2, fontSize: 54, bold: true, color: 'FFFFFF', fontFace: 'Arial' });
+      title.addText(ctx.founderProfile.vision || ctx.business.niche, { x: 0.8, y: 4.0, w: 11.7, h: 0.8, fontSize: 20, color: 'FFB59B', fontFace: 'Arial' });
+      for (const item of parsed.slides) {
+        const slide = pptx.addSlide();
+        slide.background = { color: 'FFF8F6' };
+        slide.addText(item.title, { x: 0.8, y: 0.5, w: 11.7, h: 1.0, fontSize: 32, bold: true, color: 'A53600', fontFace: 'Arial' });
+        slide.addText(item.bullets.map((bullet) => ({ text: bullet, options: { bullet: true, breakLine: true } })), { x: 0.9, y: 1.8, w: 11.5, h: 5.0, fontSize: 18, color: '261814', fontFace: 'Arial', lineSpacing: 32 });
+      }
+      mkdirSync(GEN_DIR, { recursive: true });
+      const filename = `deck-${uid()}.pptx`;
+      await pptx.writeFile({ fileName: join(GEN_DIR, filename) });
+      hooks.logAgentAction('deck', 'DECK_GENERATED', `${parsed.slides.length} slides`);
+      res.json({ url: `/generated/${filename}`, slides: parsed.slides });
+    } catch (error) {
+      res.status(502).json({ error: 'deck content generation failed', detail: normalizeOpenAIError(error, uid()) });
     }
-    mkdirSync(GEN_DIR, { recursive: true });
-    const fname = `deck-${uid()}.pptx`;
-    await pptx.writeFile({ fileName: join(GEN_DIR, fname) });
-    hooks.logAgentAction('deck', 'DECK_GENERATED', `${parsed.slides.length} slides for ${ctx.companyName}`);
-    res.json({ url: `/generated/${fname}`, slides: parsed.slides });
   });
 
-  // ── Context upload → summarized into every agent's shared memory ──────
   app.post('/api/context/upload', async (req, res) => {
     const { filename, content, workspaceId = 'default-workspace' } = req.body;
     if (!filename || !content) return res.status(400).json({ error: 'filename and content required' });
     mkdirSync(UPLOAD_DIR, { recursive: true });
-
-    // content is plain text or a data URL (base64)
     let text = String(content);
     let stored: Buffer;
     const dataUrl = text.match(/^data:([^;]+);base64,(.+)$/s);
     if (dataUrl) {
       stored = Buffer.from(dataUrl[2], 'base64');
-      text = dataUrl[1].startsWith('text') ? stored.toString('utf8') : '';
-    } else {
-      stored = Buffer.from(text, 'utf8');
-    }
-    const safe = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-    writeFileSync(join(UPLOAD_DIR, `${Date.now()}-${safe}`), stored);
-
-    // Summarize so agents get the facts without the raw document
+      text = dataUrl[1].startsWith('text/') || dataUrl[1] === 'text/csv' ? stored.toString('utf8') : '';
+    } else stored = Buffer.from(text, 'utf8');
+    const safeFilename = String(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+    writeFileSync(join(UPLOAD_DIR, `${Date.now()}-${safeFilename}`), stored);
+    const redacted = redactForOpenAI(text).slice(0, 12_000);
     let summary = '';
-    if (text) {
-      const data = await gemini('gemini-3.5-flash', {
-        contents: [{ parts: [{ text: `Summarize this founder-uploaded business document in 3 factual bullet points (numbers, names, statuses):\n\n${text.slice(0, 12000)}` }] }],
-        generationConfig: { maxOutputTokens: 1000 },
-      }).catch(() => null);
-      summary = data ? textOf(data).slice(0, 500) : '';
+    if (redacted) {
+      try {
+        const response = await client().responses.create({ model: OPENAI_MODELS.fast, input: `Summarize this business document in three factual bullets. Do not reconstruct redacted values.\n\n${redacted}` });
+        summary = response.output_text.slice(0, 500);
+      } catch { summary = 'Text stored locally; cloud summary unavailable.'; }
     }
-
-    const idx: any[] = existsSync(INDEX_PATH) ? JSON.parse(readFileSync(INDEX_PATH, 'utf8')) : [];
-    idx.push({ filename: safe, uploadedAt: new Date().toISOString(), summary: summary || `(binary file: ${filename})`, preview: text.slice(0, 200) });
-    writeFileSync(INDEX_PATH, JSON.stringify(idx, null, 2));
-    hooks.logAgentAction('operations', 'CONTEXT_UPLOADED', `${safe}: ${summary.slice(0, 100)}`);
-    res.json({ success: true, summary });
+    const index = readJsonArray<any>(INDEX_PATH);
+    index.push({ filename: safeFilename, workspaceId, uploadedAt: new Date().toISOString(), summary: summary || `(binary file retained locally; OCR not enabled: ${safeFilename})`, preview: redacted.slice(0, 200) });
+    writeFileSync(INDEX_PATH, JSON.stringify(index, null, 2));
+    hooks.logAgentAction('operations', 'CONTEXT_UPLOADED', `${safeFilename}: privacy gate applied`);
+    res.json({ success: true, summary, cloudProcessed: Boolean(redacted) });
   });
 
   app.get('/api/context/uploads', (req, res) => {
-    res.json(existsSync(INDEX_PATH) ? JSON.parse(readFileSync(INDEX_PATH, 'utf8')) : []);
+    const workspaceId = String(req.query.workspaceId || 'default-workspace');
+    res.json(readJsonArray<any>(INDEX_PATH).filter((item) => !item.workspaceId || item.workspaceId === workspaceId));
   });
 }

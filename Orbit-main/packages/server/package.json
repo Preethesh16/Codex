@@ -6,14 +6,18 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "test": "node --test test/*.test.mjs",
     "dev": "concurrently \"tsc --watch\" \"nodemon dist/index.js\"",
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@openai/agents": "^0.15.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "openai": "^7.4.0",
     "orbit-core": "*",
-    "pptxgenjs": "^4.0.1"
+    "pptxgenjs": "^4.0.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

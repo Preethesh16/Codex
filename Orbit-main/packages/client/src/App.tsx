@@ -85,7 +85,7 @@ export default function App() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Marketing Studio (real Nano Banana + Veo)
+  // Marketing Studio (GPT Image + Sora adapter)
   const [bananaImages, setBananaImages] = useState<Array<{ type: string; prompt: string }>>([]);
   const [isGeneratingBanana, setIsGeneratingBanana] = useState(false);
   const [posterPrompt, setPosterPrompt] = useState('');
@@ -463,7 +463,7 @@ export default function App() {
     }
   };
 
-  // ── REAL Nano Banana poster generation (multiple options) ──
+  // ── GPT Image poster generation (multiple options) ──
   const triggerNanoBanana = async () => {
     if (!posterPrompt.trim()) return;
     setIsGeneratingBanana(true);
@@ -483,7 +483,7 @@ export default function App() {
     }
   };
 
-  // ── REAL Veo ad-video kit (falls back to storyboard) ──
+  // ── Sora ad-video kit (falls back to storyboard) ──
   const triggerAdKit = async () => {
     if (!posterPrompt.trim()) return;
     setIsGeneratingAd(true);
@@ -558,7 +558,7 @@ export default function App() {
     }
   };
 
-  // ── Code section: hand off to Ashish's Antigravity build system ──
+  // ── Code section: hand off to StartupForge's Codex build system ──
   // Set ANTIGRAVITY_URL to his app's address once it ships; until then the
   // request is logged into shared agent memory and the page refreshes.
   const ANTIGRAVITY_URL = ''; // e.g. 'http://localhost:4000/'
@@ -733,15 +733,14 @@ export default function App() {
     }
   };
 
-  // Final roster: every agent here is real (Gemini-powered) except Code,
-  // which is the integration point for Ashish's Antigravity track.
+  // Final roster: OpenAI specialist agents plus the StartupForge Codex builder.
   const departmentsList = [
-    { name: 'Research', icon: BookOpen, color: 'from-[#a53600] to-[#cc490e]', description: 'REAL market research via live Google Search: sizes, competitors, prices.' },
+    { name: 'Research', icon: BookOpen, color: 'from-[#a53600] to-[#cc490e]', description: 'Current market research via OpenAI web search: sizes, competitors, prices.' },
     { name: 'Finance', icon: DollarSign, color: 'from-[#a53600] to-[#cc490e]', description: 'Financial support: runway, unit economics, pricing, funding options.' },
-    { name: 'Marketing', icon: Zap, color: 'from-[#a53600] to-[#cc490e]', description: 'Growth strategy + Nano Banana poster studio + Veo ad videos.' },
+    { name: 'Marketing', icon: Zap, color: 'from-[#a53600] to-[#cc490e]', description: 'Growth strategy + GPT Image poster studio + Sora video adapter.' },
     { name: 'Creative', icon: Mic, color: 'from-[#a53600] to-[#cc490e]', description: 'Captions in any language + real TTS voiceovers for your ads.' },
     { name: 'Deck', icon: FileText, color: 'from-[#a53600] to-[#cc490e]', description: 'Investor pitch deck built from live agent context, exported as PPTX.' },
-    { name: 'Code', icon: Code, color: 'from-[#a53600] to-[#cc490e]', description: 'Code support — Antigravity integration (Ashish\'s track, coming soon).' },
+    { name: 'Code', icon: Code, color: 'from-[#a53600] to-[#cc490e]', description: 'Codex-powered MVP implementation, review, repair, and rollback.' },
     { name: 'Conflict', icon: Settings2, color: 'from-[#a53600] to-[#cc490e]', description: 'Mediates department contradictions, outputs compromise logs.' }
   ];
 
@@ -909,7 +908,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>GEMINI AGENT SYSTEM: ACTIVE</span>
+            <span>OPENAI AGENT SYSTEM: ACTIVE</span>
           </div>
         </div>
       </aside>
@@ -974,14 +973,14 @@ export default function App() {
                   </form>
                 </div>
 
-                {/* Gemma Vault */}
+                {/* Local privacy vault */}
                 <div className="glass-panel rounded-2xl p-5 shadow-sm bg-white/70">
                   <div className="flex items-center gap-2 mb-3">
                     <FileLock2 className="w-5 h-5 text-stone-700" />
-                    <h3 className="font-semibold text-stone-800 font-outfit">Gemma Secure Vault</h3>
+                    <h3 className="font-semibold text-stone-800 font-outfit">Local Privacy Vault</h3>
                   </div>
                   <p className="text-[11px] text-stone-500 mb-4 leading-relaxed">
-                    Inputs saved here are local. Only derived calculations leave Gemma.
+                    Raw inputs stay local. Redaction runs before approved text reaches OpenAI.
                   </p>
 
                   <form onSubmit={handleVaultSubmit} className="flex flex-col gap-3 mb-4">
@@ -1198,7 +1197,7 @@ export default function App() {
                       <span className="text-stone-700">${context?.financials.infrastructureCost || 150}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-stone-500">Gemini/Gemma Subscriptions:</span>
+                      <span className="text-stone-500">OpenAI Usage:</span>
                       <span className="text-stone-700">${context?.financials.subscriptionCost || 80}</span>
                     </div>
                   </div>
@@ -1270,7 +1269,7 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[550px]">
               
               {/* LEFT COL — CODE VIEW: no chatbot, just the two MVP actions
-                  that hand off to Ashish's Antigravity app */}
+                  that hand off to StartupForge's Codex service */}
               {activeView === 'Code' ? (
               <div className="lg:col-span-8 glass-panel rounded-2xl p-10 shadow-2xl flex flex-col items-center justify-center gap-8 h-[600px] bg-white/70 border-stone-200/70 text-center">
                 <div className="p-4 rounded-2xl bg-gradient-to-tr from-[#a53600] to-[#cc490e] text-white shadow-[0_4px_20px_rgba(165,54,0,0.2)]">
@@ -1300,7 +1299,7 @@ export default function App() {
                     <span>Fix your MVP software</span>
                   </button>
                 </div>
-                <p className="text-[10px] text-stone-400 font-mono">Hands off to the Antigravity build system (Ashish's track)</p>
+                <p className="text-[10px] text-stone-400 font-mono">Hands off to the resumable StartupForge Codex build service</p>
               </div>
               ) : (
               <div className="lg:col-span-8 glass-panel rounded-2xl p-5 shadow-2xl flex flex-col h-[600px] bg-white/70 border-stone-200/70">
@@ -1626,7 +1625,7 @@ export default function App() {
                   <div className="glass-panel rounded-2xl p-5 shadow-2xl flex flex-col gap-4 bg-white/70 border-stone-200/70">
                     <div className="flex items-center gap-2 border-b border-stone-200/80 pb-3">
                       <Image className="w-4.5 h-4.5 text-[#a53600]" />
-                      <h3 className="font-bold text-stone-900 font-outfit text-sm">Poster & Ad Studio (Nano Banana + Veo)</h3>
+                      <h3 className="font-bold text-stone-900 font-outfit text-sm">Poster & Ad Studio (GPT Image + Sora)</h3>
                     </div>
 
                     <textarea
@@ -1651,7 +1650,7 @@ export default function App() {
                         className="flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-white bg-[#a53600] hover:bg-[#812800] rounded-xl transition shadow-sm disabled:opacity-50"
                       >
                         <Play className="w-3.5 h-3.5" />
-                        <span>{isGeneratingAd ? 'Veo rendering (~1 min)...' : 'Ad video'}</span>
+                        <span>{isGeneratingAd ? 'Sora rendering or preparing fallback...' : 'Ad video'}</span>
                       </button>
                     </div>
 
@@ -1797,13 +1796,13 @@ export default function App() {
                   <div className="glass-panel rounded-2xl p-5 shadow-sm flex flex-col gap-4 bg-white/70 border-stone-200/70">
                     <div className="flex items-center gap-2 border-b border-stone-200/80 pb-3">
                       <Code className="w-4.5 h-4.5 text-[#a53600]" />
-                      <h3 className="font-bold text-stone-900 font-outfit text-sm">Code Support — Antigravity</h3>
+                      <h3 className="font-bold text-stone-900 font-outfit text-sm">Code Support — Codex</h3>
                     </div>
                     <p className="text-xs text-stone-600 leading-relaxed">
-                      "StartupForge" and "Fix your MVP software" hand your request — with the full shared agent context — to the Antigravity build system. Direct code-editing automation plugs in here when <b>Ashish's Antigravity track</b> ships.
+                      "StartupForge" and "Fix your MVP software" hand the approved specification to a resumable Codex build thread. Changes are contained, diffed, built, and repairable.
                     </p>
                     <div className="p-3 rounded-xl border border-dashed border-[#a53600]/40 bg-[#fff1ec] text-[10px] font-mono text-stone-500 text-center">
-                      ANTIGRAVITY INTEGRATION SLOT — pending Gemma vault edit/version API
+                      CODEX BUILD SERVICE — approval required before repository writes or deployment
                     </div>
                   </div>
                 )}
