@@ -269,4 +269,5 @@ changing `main` or causing external publishing without approval.
 - StartupForge runtime smoke: passed on port 3099; `/api/health` returned the
   `codex-sdk` builder status. Both processes were then stopped cleanly.
 - No OpenAI, OAuth, deployment, GitHub, or publishing request was made.
-- Commit and push: pending final diff check.
+- Implementation/hardening milestone committed as `b875a86` and pushed
+  successfully to `codex/orbit-openai-migration`.
