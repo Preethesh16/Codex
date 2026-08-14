@@ -12,8 +12,8 @@ import { db, listFeedback, getFeedback } from './db/database';
 import {
   getGithubAccount, saveGithubAccount, clearGithubAccount, listProjects
 } from './db/database';
-import { compileBusinessContext } from './services/gemmaService';
-import { runAntigravityBuild, sendFollowUpCommand } from './services/antigravityService';
+import { compileBusinessContext } from './services/contextService';
+import { runCodexBuild, sendFollowUpCommand, rollbackSnapshot, validateProjectPath, type EventSink } from './services/antigravityService';
 import { deployMVP } from './services/deployService';
 import {
   importFromExcel, syncToExcel, ensureWorkbookExists, getWorkbookPath,
@@ -37,6 +37,101 @@ const io = new Server(httpServer, {
 
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
 app.use(express.json({ limit: '50mb' }));
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'startupforge', builder: 'codex-sdk' });
+});
+
+type HttpBuildJob = {
+  id: string;
+  buildId: number;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  projectPath: string;
+  events: Array<{ id: number; event: string; data: unknown }>;
+  result?: unknown;
+  error?: string;
+};
+
+const httpBuildJobs = new Map<string, HttpBuildJob>();
+
+function emitContext(sink: EventSink, phase: 'start' | 'progress' | 'complete', payload: Record<string, unknown>): void {
+  sink.emit(`context:${phase}`, payload);
+  sink.emit(`gemma:${phase}`, payload); // temporary client compatibility alias
+}
+
+function jobSink(job: HttpBuildJob): EventSink {
+  return {
+    emit(event, data) {
+      job.events.push({ id: job.events.length + 1, event, data });
+      if (job.events.length > 500) job.events.shift();
+    }
+  };
+}
+
+app.post('/api/builds', async (req, res) => {
+  const { businessId, command, existingProjectPath } = req.body as { businessId?: number; command?: string; existingProjectPath?: string };
+  if (!businessId || !command?.trim()) return res.status(400).json({ error: 'businessId and command are required' });
+  const business = db.prepare('SELECT id FROM business_profiles WHERE id = ?').get(businessId);
+  if (!business) return res.status(404).json({ error: 'business profile not found' });
+  let projectPath: string;
+  try {
+    projectPath = validateProjectPath(existingProjectPath || path.join(process.cwd(), process.env.GENERATED_MVPS_PATH || '../generated-mvps', `mvp-${Date.now()}`));
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message });
+  }
+  const buildRow = db.prepare(`INSERT INTO mvp_builds (business_id, status, command_used, project_path) VALUES (?, 'running', ?, ?)`)
+    .run(businessId, command, projectPath);
+  const job: HttpBuildJob = { id: crypto.randomUUID(), buildId: Number(buildRow.lastInsertRowid), status: 'queued', projectPath, events: [] };
+  httpBuildJobs.set(job.id, job);
+  res.status(202).json({ jobId: job.id, buildId: job.buildId, status: job.status, projectPath });
+  void (async () => {
+    job.status = 'running';
+    try {
+      const context = await compileBusinessContext(businessId);
+      const result = await runCodexBuild({ businessContext: context, command, projectPath, socket: jobSink(job), buildId: job.buildId });
+      job.result = result;
+      job.status = result.success ? 'completed' : 'failed';
+      job.error = result.error;
+      db.prepare('UPDATE mvp_builds SET status = ?, files_created = ? WHERE id = ?')
+        .run(result.success ? 'built' : 'failed', JSON.stringify(result.filesCreated), job.buildId);
+    } catch (error: any) {
+      job.status = 'failed';
+      job.error = error.message;
+      db.prepare('UPDATE mvp_builds SET status = ? WHERE id = ?').run('failed', job.buildId);
+    }
+  })();
+});
+
+app.get('/api/builds/:jobId', (req, res) => {
+  const job = httpBuildJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'build job not found' });
+  res.json({ ...job, events: undefined });
+});
+
+app.get('/api/builds/:jobId/events', (req, res) => {
+  const job = httpBuildJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'build job not found' });
+  const after = Number(req.query.after || 0);
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  for (const event of job.events.filter((item) => item.id > after)) {
+    res.write(`id: ${event.id}\nevent: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`);
+  }
+  res.write(`event: job:status\ndata: ${JSON.stringify({ status: job.status, error: job.error })}\n\n`);
+  res.end();
+});
+
+app.post('/api/builds/:jobId/rollback', (req, res) => {
+  const job = httpBuildJobs.get(req.params.jobId);
+  const snapshotId = String(req.body.snapshotId || '');
+  if (!job) return res.status(404).json({ error: 'build job not found' });
+  try {
+    rollbackSnapshot(job.projectPath, snapshotId);
+    res.json({ success: true, projectPath: job.projectPath, snapshotId });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
 
 // ─── BUSINESS PROFILE ROUTES ───────────────────────────────────────────────
 
@@ -130,7 +225,7 @@ app.delete('/api/business/:id/features/:featureId', (req, res) => {
   res.json({ deleted: true });
 });
 
-// Compile context endpoint (calls Gemma)
+// Compile a deterministic, privacy-filtered local context document.
 app.get('/api/business/:id/context', async (req, res) => {
   try {
     const context = await compileBusinessContext(Number(req.params.id));
@@ -350,7 +445,7 @@ io.on('connection', (socket) => {
 
   /**
    * MAIN EVENT: User clicks "CREATE MVP" or sends a command
-   * This is the full pipeline: Gemma → Antigravity → Deploy
+   * This is the full pipeline: local privacy context → Codex → optional approved deploy
    */
   socket.on('build:start', async (data: {
     businessId: number;
@@ -371,17 +466,17 @@ io.on('connection', (socket) => {
 
     try {
       // STEP 1: Compile business context directly from the profile
-      socket.emit('gemma:start', {
+      emitContext(socket, 'start', {
         message: '📋 Compiling your business profile...',
         buildId
       });
 
       const context = await compileBusinessContext(businessId, (chars) => {
-        socket.emit('gemma:progress', { chars, buildId });
+        emitContext(socket, 'progress', { chars, buildId });
       });
 
-      socket.emit('gemma:complete', {
-        message: '✅ Context compiled! Sending to Antigravity...',
+      emitContext(socket, 'complete', {
+        message: '✅ Privacy-filtered context compiled! Sending to Codex...',
         contextLength: context.length,
         buildId
       });
@@ -396,8 +491,8 @@ io.on('connection', (socket) => {
 
       db.prepare('UPDATE mvp_builds SET project_path = ? WHERE id = ?').run(projectPath, buildId);
 
-      // STEP 3: Antigravity builds the MVP
-      const buildOutput = await runAntigravityBuild({
+      // STEP 3: Codex builds and repairs the MVP in a contained directory.
+      const buildOutput = await runCodexBuild({
         businessContext: context,
         command,
         projectPath,
@@ -471,17 +566,17 @@ io.on('connection', (socket) => {
     socket.emit('build:id', { buildId });
 
     try {
-      socket.emit('gemma:start', {
+      emitContext(socket, 'start', {
         message: '📋 Compiling your business profile...',
         buildId
       });
 
       const context = await compileBusinessContext(businessId, (chars) => {
-        socket.emit('gemma:progress', { chars, buildId });
+        emitContext(socket, 'progress', { chars, buildId });
       });
 
-      socket.emit('gemma:complete', {
-        message: '✅ Context compiled! Sending to Antigravity...',
+      emitContext(socket, 'complete', {
+        message: '✅ Privacy-filtered context compiled! Sending to Codex...',
         contextLength: context.length,
         buildId
       });
@@ -715,8 +810,8 @@ httpServer.listen(PORT, () => {
   ╔═══════════════════════════════════════╗
   ║   🚀 StartupForge Server RUNNING      ║
   ║   Port: ${PORT}                          ║
-  ║   Gemma: ${process.env.OLLAMA_URL}
-  ║   Model: ${process.env.GEMMA_MODEL}
+  ║   Builder: Codex SDK                  ║
+  ║   Model: ${process.env.CODEX_MODEL || 'gpt-5.6-sol'}
   ╚═══════════════════════════════════════╝
   `);
 });

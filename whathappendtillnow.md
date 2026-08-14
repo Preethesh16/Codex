@@ -90,4 +90,43 @@ changing `main` or causing external publishing without approval.
 - No live OpenAI calls were made because credentials have not been supplied.
 - Dependency audit warnings remain pre-existing/unresolved; no forced dependency
   upgrades were performed.
+- Commit and push: `62f99ef` pushed successfully to
+  `codex/orbit-openai-migration`.
+
+### Implementation batch — StartupForge Codex build service
+
+- Removed the Google GenAI/Antigravity generator and the dormant Ollama/Gemma
+  inference implementation.
+- Added a resumable Codex SDK thread per project with Planner/implementation,
+  Critic, repair, and local build verification turns.
+- Codex works directly in a sandboxed generated-project directory; the old
+  `===FILE===` parser is gone.
+- Added generated-root path containment, traversal rejection, pre-edit
+  snapshots, changed-file records, and rollback support.
+- Added asynchronous HTTP build jobs, status polling, SSE event reads, health,
+  and rollback endpoints so Orbit no longer depends on a Windows launcher.
+- Added canonical `context:*` and `codex:*` events while retaining temporary
+  `gemma:*` and `antigravity:*` client aliases.
+- Business build context is compiled locally with personal identities,
+  credentials, contacts, registration IDs, and precise locations omitted or
+  redacted before Codex receives it.
+
+#### Files changed
+
+- `startupforge/server/src/services/antigravityService.ts`
+- `startupforge/server/src/services/contextService.ts`
+- removed `startupforge/server/src/services/gemmaService.ts`
+- `startupforge/server/src/index.ts`
+- `startupforge/server/.env.example`
+- `startupforge/server/package.json`
+- `startupforge/server/package-lock.json`
+- `startupforge/server/test/codexBuildSafety.test.js`
+
+#### Verification and status
+
+- StartupForge server TypeScript build: passed.
+- StartupForge client TypeScript/Vite build: passed.
+- Live Codex build not run because credentials have not been supplied.
+- `npm test`: passed 2 safety tests for generated-root containment and snapshot
+  rollback after correcting a root-path validation edge case.
 - Commit and push: pending immediately after this audit update.
