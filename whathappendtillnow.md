@@ -2300,4 +2300,7 @@ changing `main` or causing external publishing without approval.
 - Credential-pattern scan of README text and assets: no committed credential
   value found.
 - No OpenAI generation call, deployment, publication, or unrelated branch pull
-  occurred in this batch. Commit and push status: pending.
+  occurred in this batch.
+- Documentation commit: `3abc356` (`docs: present Orbit multi-agent demo`),
+  pushed to `codex/orbit-openai-migration`. The status-only audit update will be
+  committed separately without rewriting that milestone.
