@@ -2657,5 +2657,96 @@ changing `main` or causing external publishing without approval.
   `c736d07`, then restore the gamified implementation only in the local working
   tree and run Orbit for browser review. `main` was never changed by that
   milestone and remains untouched.
-- Status: in progress. Do not push the locally restored UI without new explicit
-  owner approval.
+- Published normal revert `0c4e073` to `codex/orbit-openai-migration`; the
+  remote branch no longer includes the gamified command-floor milestone.
+  `main` was not changed.
+- Restored the three gamified client implementation files from `c736d07` only
+  in the local working tree for owner review. They are intentionally
+  uncommitted and unpushed. Do not push them without new explicit approval.
+- Started the local Orbit client at `http://localhost:3000`; both the client and
+  the existing API on port 5000 returned HTTP 200. The API reports the expected
+  signed-out CAZ workspace state. The review server remains running locally.
+
+### Prompt — expand the gamified floor into an interactive agent house
+
+- The owner requested a full website experience based on the approved Orbit HQ
+  pixel theme: one shared room containing all specialist agents, roaming motion,
+  click-to-open agent chat, and visible proximity/conversation behavior when
+  multiple agents collaborate.
+- Preserve the real Orbit task, context, navigation, and chatbot integrations;
+  use lightweight UI animation and keep this review batch local. Do not commit
+  or push it until the owner explicitly approves the running result.
+- Rebuilt the static card floor as one interactive command house with seven
+  furnished rooms, a Manager station, shared sync lounge, live status legend,
+  moving message packets, XP/quest HUD, and lightweight CSS pixel characters.
+  Idle agents roam within their rooms. When two or more real tasks are active,
+  their specialists walk into the lounge, group together, and exchange visible
+  task-aware conversation bubbles.
+- Clicking any unlocked character opens its existing context-aware department
+  chatbot. Code now follows the same chat behavior as every other specialist
+  while retaining the StartupForge controls, and department screens include a
+  direct HQ-floor return button.
+- Extended the pixel-console art direction across the login/setup terminal,
+  authenticated sidebar, header, page background, and working panels without
+  changing authentication or underlying API behavior.
+- Files changed: `Orbit-main/packages/client/src/AgentOfficeFloor.tsx`,
+  `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/client/src/index.css`, and this audit log.
+- Verification passed after the full-shell styling: client TypeScript/Vite
+  production build, all 16 Orbit
+  server tests, and live Vite HMR with no compile/runtime overlay errors. The
+  client remains available at `http://localhost:3000` against the existing API
+  on port 5000.
+- Commit and push status: intentionally uncommitted and unpushed for owner
+  review, as requested. Remote revert `0c4e073` remains the published state.
+
+### Prompt — one shared office, popup chats, and dedicated agent rooms
+
+- The owner clarified the interaction model: Mission Control must show all
+  agents together in one open room rather than separate room cards. Clicking a
+  character there should open its chatbot as a popup without leaving the shared
+  office. Choosing a department from the sidebar should open that specialist's
+  dedicated room with its chat and existing tools.
+- Preserve roaming and collaboration movement, real chat APIs, raw Markdown
+  copy behavior, and all existing specialist actions. Keep this batch local and
+  unpushed pending visual approval.
+- Replaced the seven boxed office cards with one continuous Common Floor. Each
+  specialist now has a colored workstation inside the same walkable room; the
+  shared meeting table, lounge, Manager station, roaming, and multi-agent sync
+  behavior remain visible together.
+- Clicking a Common Floor character opens an accessible in-place chat dialog
+  backed by the existing `/api/chat` endpoint. The popup preserves formatted AI
+  display, raw-response copying, loading state, and offers an “Open full room”
+  transition without losing the conversation.
+- Sidebar department selection now opens a dedicated themed specialist room
+  above the full chat and existing department tools. Mission Control and HQ
+  buttons close popup state cleanly before navigating.
+- Files changed in this refinement:
+  `Orbit-main/packages/client/src/AgentOfficeFloor.tsx`,
+  `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/client/src/index.css`, and this audit log.
+- Verification passed: TypeScript and the Vite production build completed with
+  1,474 modules transformed. Live Vite refreshed the running app; the expected
+  full reload after adding a named component export completed without an error
+  overlay. Orbit remains available at `http://localhost:3000`.
+- Commit and push status: intentionally uncommitted and unpushed. The remote
+  still ends at revert `0c4e073` pending owner approval.
+
+### Prompt — publish the approved shared-office UI to default and main
+
+- The owner approved the locally reviewed one-room multi-agent experience and
+  explicitly requested it be pushed to the repository default branch and
+  merged into `main`.
+- Re-run final verification, commit only the existing Orbit/audit changes,
+  publish to `codex/orbit-openai-migration`, then merge that exact milestone
+  into `main` without force-pushing or pulling unrelated work.
+- Final verification passed: the client TypeScript/Vite production build
+  transformed 1,474 modules successfully, all 16 Orbit server tests passed, and
+  `git diff --check` reported no whitespace errors.
+- Files included in the approved milestone are limited to
+  `Orbit-main/packages/client/src/AgentOfficeFloor.tsx`,
+  `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/client/src/index.css`, and this audit log. No unrelated
+  folders were pulled or added.
+- Commit and push status: publishing to the default branch and merging the same
+  milestone into `main` immediately after this entry.
