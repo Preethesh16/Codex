@@ -2554,6 +2554,10 @@ changing `main` or causing external publishing without approval.
   `git diff --check` passed.
 - Commit and push status: publishing this verified extended-demo milestone to
   the default branch and merging it into `main` immediately after this entry.
+- Delivery completed without force-pushing: extended creative-demo commit
+  `946d70c` is published to `codex/orbit-openai-migration`, and merge commit
+  `f3df3b1` is published to `codex/main`. This final audit-only delivery
+  confirmation is synchronized to both branches immediately after this line.
 
 #### Change batch — narrated evaluator demo
 
