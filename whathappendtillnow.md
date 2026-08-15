@@ -3,6 +3,18 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:11:05 IST — Confirm encryption-key placement
+
+### Request summary and status
+
+- Confirmed the third independently generated random value belongs in
+  StartupForge's `STARTUPFORGE_TOKEN_ENCRYPTION_KEY` field.
+- It must differ from the shared service token and Orbit approval token.
+- No secret was read, generated, logged, or changed.
+- Files changed: `whathappendtillnow.md` only. No tests were needed because no
+  source or configuration changed.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:08:57 IST — Clarify StartupForge environment values
 
 ### Request summary
