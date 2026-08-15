@@ -28,7 +28,8 @@ thread and follows Planner → implementation → Critic → repair.
 cd server
 cp .env.example .env
 # Add OPENAI_API_KEY, STARTUPFORGE_SERVICE_TOKEN, and
-# STARTUPFORGE_TOKEN_ENCRYPTION_KEY to the untracked .env file.
+# STARTUPFORGE_TOKEN_ENCRYPTION_KEY to the untracked .env file. Set
+# GITHUB_SSH_OWNER if source publishing is needed.
 npm install
 npm run dev
 
@@ -58,6 +59,9 @@ must never be exposed to either browser client.
 - Dependency installation uses `--ignore-scripts`. Git publishing validates
   repository names, disables hooks/executable Git configuration, never embeds
   a token in the remote URL, and never force-pushes.
+- GitHub publishing uses the operator's local SSH key and requires an existing
+  repository under `GITHUB_SSH_OWNER`. StartupForge does not store a GitHub PAT,
+  create repositories, enable Pages, or deploy as part of this source push.
 - Use `POST /api/builds/:jobId/rollback` with the returned snapshot ID to restore
   a pre-edit project state.
 - Set `STARTUPFORGE_DB_PATH` and `FEEDBACK_CSV_PATH` when durable data should

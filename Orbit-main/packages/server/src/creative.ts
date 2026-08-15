@@ -108,7 +108,11 @@ async function generateStoryboardStills(companyName: string, product: string, st
 async function processVideoJob(job: MediaJob, companyName: string, product: string, hooks: Hooks, dependencies: CreativeDependencies): Promise<void> {
   updateMediaJob(job, { status: 'running' });
   let storyboard: z.infer<typeof StoryboardSchema> = offlineStoryboard(companyName);
-  try { storyboard = await storyboardFor(companyName, product); } catch { /* offline storyboard remains */ }
+  // An injected media client denotes deterministic/offline operation (tests and
+  // venue demo), so do not accidentally call the global Agents runtime here.
+  if (!dependencies.client) {
+    try { storyboard = await storyboardFor(companyName, product); } catch { /* offline storyboard remains */ }
+  }
   const videoPrompt = job.prompt || `Eight-second modern product advertisement for ${companyName}: ${product}.`;
   const getClient = dependencies.client || client;
   const sleep = dependencies.sleep || ((milliseconds: number) => new Promise<void>((resolvePromise) => setTimeout(resolvePromise, milliseconds)));

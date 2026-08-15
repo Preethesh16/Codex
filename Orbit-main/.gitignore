@@ -18,5 +18,6 @@ packages/core/dist/
 packages/client/src/**/*.js
 packages/client/src/**/*.js.map
 packages/client/src/**/*.d.ts
+!packages/client/src/vite-env.d.ts
 packages/client/src/**/*.d.ts.map
 packages/server/uploads/

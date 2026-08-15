@@ -150,7 +150,7 @@ export function useSocket() {
     socketInstance?.emit('feedback:reject', data);
   };
 
-  const publishToGithub = (data: { projectPath: string; repoName: string; isPrivate?: boolean; buildId?: number }) => {
+  const publishToGithub = (data: { projectPath: string; repoName: string; buildId?: number }) => {
     socketInstance?.emit('github:publish', { ...data, approved: true });
   };
 

@@ -12,9 +12,7 @@ import {
   db, listFeedback, getFeedback, createBuildJob, updateBuildJob, getBuildJob,
   appendBuildEvent, listBuildEvents, type BuildJobStatus,
 } from './db/database';
-import {
-  getGithubAccount, saveGithubAccount, clearGithubAccount, listProjects
-} from './db/database';
+import { listProjects } from './db/database';
 import { compileBusinessContext } from './services/contextService';
 import { runCodexBuild, sendFollowUpCommand, rollbackSnapshot, validateProjectPath, type EventSink } from './services/antigravityService';
 import { deployMVP } from './services/deployService';
@@ -22,13 +20,10 @@ import {
   importFromCsv, syncToCsv, ensureFeedbackCsvExists, getFeedbackCsvPath,
   mapFeedbackRow, computeScore
 } from './services/feedbackService';
-import {
-  isOAuthConfigured, buildAuthorizeUrl, exchangeCodeForToken, fetchGithubUser, publishToGithub
-} from './services/githubService';
+import { getSshGithubConfig, publishToGithub } from './services/githubService';
 import crypto from 'crypto';
 import OpenAI, { toFile } from 'openai';
 import { requireExplicitApproval } from './services/actionApproval';
-import { consumeOAuthState, createOAuthState } from './services/oauthState';
 
 const app = express();
 const httpServer = createServer(app);
@@ -394,62 +389,22 @@ app.get('/api/projects', (_req, res) => {
 // ─── GITHUB CONNECT / PUBLISH ───────────────────────────────────────────────
 
 // Where to send the user after the GitHub OAuth callback
-function githubCallbackUrl(req: express.Request): string {
-  return process.env.GITHUB_CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/github/callback`;
-}
-
 app.get('/api/github/status', (_req, res) => {
-  const account = getGithubAccount() as any;
+  const config = getSshGithubConfig();
   res.json({
-    connected: !!account,
-    username: account?.username || null,
-    avatarUrl: account?.avatar_url || null,
-    oauthConfigured: isOAuthConfigured()
+    connected: config.configured,
+    configured: config.configured,
+    username: config.owner,
+    owner: config.owner,
+    mode: config.mode,
+    requiresExistingRepository: true,
   });
 });
 
-// Step 1: client is redirected here, which redirects to GitHub's authorize page
-app.get('/api/github/auth-url', (req, res) => {
-  if (!isOAuthConfigured()) {
-    return res.status(400).json({ error: 'GitHub OAuth is not configured. Set GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET, or use "Connect with token" instead.' });
-  }
-  const url = buildAuthorizeUrl(githubCallbackUrl(req), createOAuthState());
-  res.json({ url });
-});
-
-// Step 2: GitHub redirects back here with ?code=...
-app.get('/api/github/callback', async (req, res) => {
-  const { code, state } = req.query as { code?: string; state?: string };
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-  if (!code || !consumeOAuthState(state)) return res.redirect(`${clientUrl}/dashboard?github=error`);
-
-  try {
-    const token = await exchangeCodeForToken(code, githubCallbackUrl(req));
-    const user = await fetchGithubUser(token);
-    saveGithubAccount({ username: user.username, avatarUrl: user.avatarUrl, accessToken: token });
-    res.redirect(`${clientUrl}/dashboard?github=connected`);
-  } catch (error: any) {
-    console.error('GitHub OAuth callback failed:', error.message);
-    res.redirect(`${clientUrl}/dashboard?github=error`);
-  }
-});
-
-// Fallback for users who don't want to register an OAuth App: paste a PAT.
-app.post('/api/github/token', async (req, res) => {
-  const { token } = req.body;
-  if (!token) return res.status(400).json({ error: 'token is required' });
-  try {
-    const user = await fetchGithubUser(token);
-    saveGithubAccount({ username: user.username, avatarUrl: user.avatarUrl, accessToken: token });
-    res.json({ connected: true, username: user.username, avatarUrl: user.avatarUrl });
-  } catch (error: any) {
-    res.status(401).json({ error: 'Invalid GitHub token: ' + (error.response?.data?.message || error.message) });
-  }
-});
-
-app.post('/api/github/disconnect', (_req, res) => {
-  clearGithubAccount();
-  res.json({ disconnected: true });
+app.all(['/api/github/auth-url', '/api/github/callback', '/api/github/token', '/api/github/disconnect'], (_req, res) => {
+  res.status(410).json({
+    error: 'GitHub OAuth and pasted tokens are disabled. Configure GITHUB_SSH_OWNER and this machine\'s SSH key instead.',
+  });
 });
 
 // ─── VOICE — OpenAI speech-to-text proxy ──────────────────────────────────
@@ -779,7 +734,6 @@ io.on('connection', (socket) => {
   socket.on('github:publish', async (data: {
     projectPath: string;
     repoName: string;
-    isPrivate?: boolean;
     buildId?: number;
     approved?: boolean;
   }) => {
@@ -789,12 +743,7 @@ io.on('connection', (socket) => {
       socket.emit('github:error', { message: error.message });
       return;
     }
-    const account = getGithubAccount() as any;
-    if (!account) {
-      socket.emit('github:error', { message: 'Connect your GitHub account first.' });
-      return;
-    }
-    if (!data.projectPath || !fs.existsSync(data.projectPath)) {
+    if (!data.projectPath) {
       socket.emit('github:error', { message: 'No project to publish — build an MVP first.' });
       return;
     }
@@ -802,12 +751,12 @@ io.on('connection', (socket) => {
     const repoName = (data.repoName || path.basename(data.projectPath)).replace(/[^a-zA-Z0-9._-]/g, '-');
 
     try {
+      const projectPath = validateProjectPath(data.projectPath);
+      if (!fs.existsSync(projectPath)) throw new Error('No project to publish — build an MVP first.');
       socket.emit('github:start', { message: `🐙 Publishing "${repoName}" to GitHub...` });
       const result = await publishToGithub({
-        token: account.access_token,
-        projectPath: data.projectPath,
+        projectPath,
         repoName,
-        isPrivate: !!data.isPrivate,
         socket
       });
 

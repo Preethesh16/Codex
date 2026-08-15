@@ -3,6 +3,74 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:14:47 IST — Validate configuration and integrate SSH/UX hardening
+
+### Request summary
+
+Validate the newly configured local environment without exposing credentials,
+replace StartupForge's application-level GitHub publishing transport with SSH,
+and perform a clean evidence-based integration of only the worthwhile changes
+from the collaborator checkpoint.
+
+### Initial decisions and status
+
+- Work starts clean on `orbit-openai-migration` at `7ae5c23`.
+- Validation will report only field presence/format and service connectivity;
+  no secret value will be printed or logged.
+- SSH is installed and Bubblewrap remains available. GitHub CLI is not installed,
+  so pure SSH can push only to repositories that already exist; repository
+  creation and Pages API enablement cannot be performed through the SSH protocol.
+- The planned publisher will therefore use SSH for Git operations, reject
+  credential-bearing HTTPS remotes, require an explicit owner/existing repository,
+  preserve human approval, and clearly report the manual repository/Pages step.
+- The collaborator commit will not be merged wholesale. Candidate changes are
+  the correct Orbit CORS port, launch-state UX with an environment-configurable
+  StartupForge client URL, and nodemon output watching. Runtime feedback CSV and
+  peer-only lockfile churn remain excluded.
+- No external GitHub write, provider call, media publication, deployment, or
+  paid model operation is authorized or planned for this batch.
+- Configuration validation (values never printed): GitHub SSH authentication,
+  Orbit's OpenAI key, shared service-token match, approval token, encryption
+  keys, Google OAuth client fields, and YouTube callback are structurally ready.
+  StartupForge's OpenAI key is still absent/placeholder, and MultiVideo's local
+  `MONGO_URI` is not a complete `mongodb://` or `mongodb+srv://` connection URI;
+  live Codex and Mongo startup checks therefore remain blocked on those two
+  local corrections. Unsupported social-adapter credentials should remain
+  blank until their adapters are implemented.
+- Replaced StartupForge's GitHub OAuth/PAT/repository-creation/Pages flow with an
+  SSH-only, approval-gated source publisher. It accepts a validated owner and
+  repository name, requires the repository to exist, checks SSH access, blocks
+  executable Git configuration, never embeds credentials, and never force
+  pushes. Repository creation, Pages, and deployment remain separate actions.
+- Integrated the worthwhile collaborator work manually: fixed Orbit's default
+  CORS origin to its actual port, added a configurable StartupForge browser URL,
+  visible launch progress/errors, duplicate-click prevention, and stable
+  nodemon watching. Excluded the runtime feedback CSV and unrelated lockfile
+  peer-dependency churn. Also fixed the offline media test path so an injected
+  demo client cannot accidentally invoke the global Agents runtime.
+- Files changed: `.gitignore`, `Orbit-main/packages/client/.env.example`,
+  `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/client/src/vite-env.d.ts`,
+  `Orbit-main/packages/server/.env.example`,
+  `Orbit-main/packages/server/nodemon.json`,
+  `Orbit-main/packages/server/src/creative.ts`,
+  `Orbit-main/packages/server/src/httpPolicy.ts`, `startupforge/README.md`,
+  StartupForge client GitHub UI/socket files, server env/dependency/index/GitHub
+  service/tests, removal of the obsolete OAuth-state service, and this journal.
+  The ignored local StartupForge env received only `GITHUB_SSH_OWNER`; no secret
+  was logged or committed.
+- Verification: GitHub SSH handshake passed; StartupForge server build and all
+  14 tests passed; StartupForge client production build passed; Orbit monorepo
+  production build and all 15 server tests passed; MultiVideo all 7 tests passed.
+  The first Orbit test run exposed a deterministic/offline media timeout (14/15
+  passed); dependency isolation was corrected and the complete rerun passed.
+  A root-level `npm test` attempt in Orbit reported no root test script, so the
+  actual server workspace test command was run successfully instead. The first
+  staging attempt also showed that the compiled-declaration ignore pattern
+  caught Vite's conventional source declaration `vite-env.d.ts`; a narrow
+  tracked-file exception was added before committing.
+- Commit and push: pending final diff review.
+
 ## 2026-08-15 07:12:42 IST — Confirm final OAuth scope set
 
 ### Request summary and status

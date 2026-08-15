@@ -67,10 +67,9 @@ export default function Dashboard() {
   const [customCommand, setCustomCommand] = useState('');
   const [compiledContext, setCompiledContext] = useState('');
   const [showContext, setShowContext] = useState(false);
-  const [github, setGithub] = useState<{ connected: boolean; username: string | null; oauthConfigured: boolean }>({
-    connected: false, username: null, oauthConfigured: false
+  const [github, setGithub] = useState<{ connected: boolean; owner: string | null; mode: 'ssh'; requiresExistingRepository: boolean }>({
+    connected: false, owner: null, mode: 'ssh', requiresExistingRepository: true
   });
-  const [showGithubModal, setShowGithubModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
 
@@ -94,14 +93,9 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildEvents]);
 
-  // GitHub connection status (+ handle OAuth redirect back from /api/github/callback)
+  // GitHub SSH publishing configuration status.
   useEffect(() => {
     refreshGithubStatus();
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('github') === 'connected' || params.get('github') === 'error') {
-      window.history.replaceState({}, '', window.location.pathname);
-      refreshGithubStatus();
-    }
   }, []);
 
   const refreshGithubStatus = async () => {
@@ -109,20 +103,6 @@ export default function Dashboard() {
       const { data } = await axios.get(`${SERVER}/api/github/status`);
       setGithub(data);
     } catch { /* server may be starting up */ }
-  };
-
-  const connectGithub = async () => {
-    try {
-      const { data } = await axios.get(`${SERVER}/api/github/auth-url`);
-      window.location.href = data.url;
-    } catch {
-      setShowGithubModal(true); // OAuth not configured — offer token paste instead
-    }
-  };
-
-  const disconnectGithub = async () => {
-    await axios.post(`${SERVER}/api/github/disconnect`);
-    refreshGithubStatus();
   };
 
   const handleCommand = (cmd: string) => {
@@ -242,25 +222,24 @@ export default function Dashboard() {
             {github.connected ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[12.5px]">
-                  <span style={{ color: 'var(--text-3)' }}>Connected</span>
+                  <span style={{ color: 'var(--text-3)' }}>SSH ready</span>
                   <span className="flex items-center gap-1.5" style={{ color: 'var(--text-1)' }}>
-                    <IconGithub size={13} /> {github.username}
+                    <IconGithub size={13} /> {github.owner}
                   </span>
                 </div>
-                <div className="flex gap-1.5">
-                  <button onClick={() => setShowPublishModal(true)} disabled={!lastProjectPath} className="btn btn-primary flex-1" style={{ padding: '7px 10px' }}>
+                <div className="flex">
+                  <button onClick={() => setShowPublishModal(true)} disabled={!lastProjectPath} className="btn btn-primary w-full" style={{ padding: '7px 10px' }}>
                     <IconRocket size={13} /> Publish
                   </button>
-                  <button onClick={disconnectGithub} className="btn btn-ghost" style={{ padding: '7px 10px' }}>
-                    Disconnect
-                  </button>
                 </div>
-                {!lastProjectPath && <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>Build an MVP first to publish it.</p>}
+                <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>
+                  {lastProjectPath ? 'Create the empty GitHub repository first; source push requires approval.' : 'Build an MVP first to publish it.'}
+                </p>
               </div>
             ) : (
-              <button onClick={connectGithub} className="btn btn-ghost w-full">
-                <IconGithub size={15} /> Connect GitHub
-              </button>
+              <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--text-3)' }}>
+                Set <code className="mono">GITHUB_SSH_OWNER</code> on the server and restart it. No GitHub token is stored.
+              </p>
             )}
           </div>
 
@@ -448,22 +427,15 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* GitHub token-connect fallback modal (used when OAuth App isn't configured) */}
-      {showGithubModal && (
-        <GithubTokenModal
-          onClose={() => setShowGithubModal(false)}
-          onConnected={() => { setShowGithubModal(false); refreshGithubStatus(); }}
-        />
-      )}
-
       {/* Publish-to-GitHub modal */}
       {showPublishModal && lastProjectPath && (
         <PublishModal
           projectPath={lastProjectPath}
           buildId={currentBuildId ?? undefined}
           onClose={() => setShowPublishModal(false)}
-          onPublish={(repoName, isPrivate) => {
-            publishToGithub({ projectPath: lastProjectPath, repoName, isPrivate, buildId: currentBuildId ?? undefined });
+          owner={github.owner}
+          onPublish={(repoName) => {
+            publishToGithub({ projectPath: lastProjectPath, repoName, buildId: currentBuildId ?? undefined });
             setShowPublishModal(false);
           }}
         />
@@ -472,60 +444,11 @@ export default function Dashboard() {
   );
 }
 
-function GithubTokenModal({ onClose, onConnected }: { onClose: () => void; onConnected: () => void }) {
-  const [token, setToken] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const submit = async () => {
-    if (!token.trim()) return;
-    setSaving(true);
-    setError('');
-    try {
-      await axios.post(`${SERVER}/api/github/token`, { token: token.trim() });
-      onConnected();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to connect. Check the token and try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div onClick={onClose} className="fixed inset-0 flex items-center justify-center z-50 p-6" style={{ background: 'rgba(0,0,0,0.72)' }}>
-      <div onClick={e => e.stopPropagation()} className="panel w-full max-w-md p-6" style={{ background: 'var(--bg-1)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}><IconGithub size={16} /> Connect GitHub</h3>
-          <button onClick={onClose} style={{ color: 'var(--text-2)' }}><IconX size={18} /></button>
-        </div>
-        <p className="text-[12.5px] mb-3" style={{ color: 'var(--text-2)' }}>
-          No OAuth App configured on the server. Paste a{' '}
-          <a href="https://github.com/settings/tokens/new?scopes=repo&description=StartupForge" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }} className="hover:underline">
-            Personal Access Token
-          </a>{' '}with <code className="mono" style={{ color: 'var(--c-build)' }}>repo</code> scope instead.
-        </p>
-        <input
-          value={token}
-          onChange={e => setToken(e.target.value)}
-          type="password"
-          placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-          className="field mb-2"
-        />
-        {error && <p className="text-[12px] mb-2" style={{ color: 'var(--c-error)' }}>{error}</p>}
-        <button onClick={submit} disabled={saving || !token.trim()} className="btn btn-primary w-full">
-          {saving ? 'Connecting…' : 'Connect'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PublishModal({ projectPath, onClose, onPublish }: {
-  projectPath: string; buildId?: number; onClose: () => void; onPublish: (repoName: string, isPrivate: boolean) => void;
+function PublishModal({ projectPath, owner, onClose, onPublish }: {
+  projectPath: string; owner: string | null; buildId?: number; onClose: () => void; onPublish: (repoName: string) => void;
 }) {
   const defaultName = projectPath.split(/[\\/]/).filter(Boolean).pop() || 'startupforge-mvp';
   const [repoName, setRepoName] = useState(defaultName);
-  const [isPrivate, setIsPrivate] = useState(false);
 
   return (
     <div onClick={onClose} className="fixed inset-0 flex items-center justify-center z-50 p-6" style={{ background: 'rgba(0,0,0,0.72)' }}>
@@ -535,15 +458,11 @@ function PublishModal({ projectPath, onClose, onPublish }: {
           <button onClick={onClose} style={{ color: 'var(--text-2)' }}><IconX size={18} /></button>
         </div>
         <p className="text-[12.5px] mb-4" style={{ color: 'var(--text-2)' }}>
-          Pushes source to a GitHub repo and publishes the built app live via GitHub Pages.
+          Pushes source over SSH to an existing repository under {owner || 'the configured owner'}. Create the empty repository on GitHub first. Deployment is separate.
         </p>
         <label className="label">Repository name</label>
         <input value={repoName} onChange={e => setRepoName(e.target.value)} className="field mb-3" />
-        <label className="flex items-center gap-2 mb-4 text-[12.5px]" style={{ color: 'var(--text-2)' }}>
-          <input type="checkbox" checked={isPrivate} onChange={e => setIsPrivate(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
-          Make repository private
-        </label>
-        <button onClick={() => onPublish(repoName.trim(), isPrivate)} disabled={!repoName.trim()} className="btn btn-primary w-full">
+        <button onClick={() => onPublish(repoName.trim())} disabled={!repoName.trim()} className="btn btn-primary w-full">
           Publish <IconArrowRight size={14} />
         </button>
       </div>
