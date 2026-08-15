@@ -76,6 +76,7 @@ const STARTUPFORGE_CLIENT_URL = import.meta.env.VITE_STARTUPFORGE_CLIENT_URL || 
 export default function App() {
   const [authMode, setAuthMode] = useState<'loading' | 'setup' | 'login' | 'authenticated'>('loading');
   const [authLoginName, setAuthLoginName] = useState('');
+  const [authCompanyVision, setAuthCompanyVision] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authError, setAuthError] = useState('');
@@ -221,7 +222,7 @@ export default function App() {
         return response.json();
       })
       .then((data) => {
-        setAuthLoginName(data.loginName || data.suggestedLoginName || 'CAZ');
+        setAuthLoginName(data.loginName || data.suggestedLoginName || '');
         setAuthMode(data.authenticated ? 'authenticated' : data.setupRequired ? 'setup' : 'login');
       })
       .catch((error) => {
@@ -248,6 +249,10 @@ export default function App() {
       setAuthError('Passwords do not match.');
       return;
     }
+    if (authMode === 'setup' && authCompanyVision.trim().length < 10) {
+      setAuthError('Describe your startup idea in at least 10 characters.');
+      return;
+    }
     setIsAuthenticating(true);
     setAuthError('');
     try {
@@ -255,11 +260,20 @@ export default function App() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loginName: authLoginName, password: authPassword }),
+        body: JSON.stringify(authMode === 'setup'
+          ? { companyName: authLoginName, companyVision: authCompanyVision.trim(), password: authPassword }
+          : { loginName: authLoginName, password: authPassword }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not sign in to Orbit.');
       setAuthLoginName(data.loginName);
+      if (authMode === 'setup') {
+        setWorkspaceId(data.workspaceId || 'default-workspace');
+        setInputCompanyName(data.companyName || data.loginName);
+        setHasIdeaLaunched(true);
+        setActiveView('Research');
+        setAuthCompanyVision('');
+      }
       setAuthPassword('');
       setAuthPasswordConfirm('');
       setAuthMode('authenticated');
@@ -970,7 +984,7 @@ export default function App() {
       <div className="relative min-h-screen flex items-center justify-center bg-[#fff8f6] overflow-hidden text-stone-850 px-4">
         <div className="glow-orb w-[700px] h-[700px] bg-amber-100/30 top-[-300px] left-[-300px]" />
         <div className="glow-orb w-[600px] h-[600px] bg-orange-100/20 bottom-[-300px] right-[-300px]" />
-        <div className="w-full max-w-md z-10">
+        <div className={`w-full ${authMode === 'setup' ? 'max-w-xl' : 'max-w-md'} z-10`}>
           <div className="text-center mb-6">
             <div className="mx-auto mb-4 flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#a53600] to-[#cc490e] text-white shadow-[0_4px_20px_rgba(165,54,0,0.15)]">
               <FolderDot className="w-8 h-8" />
@@ -986,28 +1000,46 @@ export default function App() {
               <form onSubmit={handleAuthentication} className="flex flex-col gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-stone-900 font-outfit">
-                    {authMode === 'setup' ? `Create a password for ${authLoginName || 'CAZ'}` : 'Welcome back'}
+                    {authMode === 'setup' ? 'Set up your company' : 'Welcome back'}
                   </h2>
                   <p className="mt-1 text-xs leading-relaxed text-stone-500">
                     {authMode === 'setup'
-                      ? 'This is the one-time setup. Your password is hashed locally and is never stored as readable text.'
+                      ? 'Tell Orbit what you are building and create the password you will use to return. This happens only once.'
                       : 'Enter your company name and password to open Orbit.'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Company login</label>
+                  <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">
+                    {authMode === 'setup' ? 'Company name' : 'Company login'}
+                  </label>
                   <input
                     type="text"
                     name="username"
                     autoComplete="username"
                     value={authLoginName}
                     onChange={(e) => setAuthLoginName(e.target.value)}
-                    readOnly={authMode === 'setup'}
-                    className="orbit-readable-input w-full px-4 py-2.5 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] read-only:opacity-75"
+                    placeholder={authMode === 'setup' ? 'e.g. CAZ' : 'Your company name'}
+                    className="orbit-readable-input w-full px-4 py-2.5 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600]"
                     required
                   />
                 </div>
+
+                {authMode === 'setup' && (
+                  <div>
+                    <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Startup vision / idea</label>
+                    <textarea
+                      name="company-vision"
+                      value={authCompanyVision}
+                      onChange={(e) => setAuthCompanyVision(e.target.value)}
+                      minLength={10}
+                      maxLength={2000}
+                      placeholder="What are you building, who is it for, and what problem does it solve?"
+                      className="orbit-readable-input w-full h-24 p-4 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] placeholder:text-stone-400 resize-none leading-relaxed"
+                      required
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Password</label>
@@ -1045,10 +1077,12 @@ export default function App() {
 
                 <button
                   type="submit"
-                  disabled={isAuthenticating || !authLoginName.trim() || authPassword.length < 8}
+                  disabled={isAuthenticating || !authLoginName.trim() || authPassword.length < 8 || (authMode === 'setup' && authCompanyVision.trim().length < 10)}
                   className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#a53600] to-[#cc490e] hover:from-[#812800] hover:to-[#a53600] rounded-xl transition shadow-[0_4px_25px_rgba(165,54,0,0.12)] disabled:opacity-50"
                 >
-                  {isAuthenticating ? 'Please wait…' : authMode === 'setup' ? 'Create password and enter Orbit' : 'Sign in'}
+                  {isAuthenticating
+                    ? authMode === 'setup' ? 'Setting up your workspace…' : 'Signing in…'
+                    : authMode === 'setup' ? 'Create company workspace' : 'Sign in'}
                 </button>
               </form>
             )}

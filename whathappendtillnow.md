@@ -3,6 +3,58 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 11:12:26 IST — Unify first-run company setup and password
+
+### Request summary and initial decisions
+
+- Correct Orbit's startup routing so a returning founder sees login, while a
+  first-time founder sees one setup form containing company information and
+  password creation.
+- Remove the confusing separate password-only bootstrap followed by a second
+  company-information screen. Setup must create the local credential and seed
+  the first workspace coherently without exposing plaintext credentials.
+- Preserve existing configured installations and existing workspaces: they
+  continue to use login and are not reset or overwritten.
+
+### Changes and verification
+
+- First-run Orbit now presents one `Set up your company` form containing the
+  company name, startup vision/idea, password, and password confirmation.
+  Submitting it creates the hashed local login, names and initializes the
+  default workspace, seeds its eight-stage agent graph, signs the founder in,
+  and opens Research. There is no password-only bootstrap followed by duplicate
+  company onboarding.
+- Returning installations remain untouched: when a credential exists, startup
+  presents `Welcome back` with the saved company login and password field.
+  Existing workspace and credential data are never reset by this routing.
+- Extracted the common workspace-execution initializer so regular onboarding
+  and first-run setup use the same context and task graph behavior.
+- Prevented TypeScript from emitting client `.js` files beside `.tsx` sources;
+  those ignored artifacts could shadow the current React source in Vite and
+  resurrect stale startup UI. Existing generated source artifacts were removed
+  and a subsequent build confirmed they were not recreated.
+- Files changed: `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/client/tsconfig.json`,
+  `Orbit-main/packages/server/src/index.ts`, and this journal.
+- The complete production build passed and all 16 server tests passed. A fresh
+  isolated installation verified: blank setup state; invalid company vision
+  rejected without creating a credential; valid combined setup returned 201;
+  company name and vision persisted; eight tasks from Research through GTM
+  existed; logout succeeded; and the new company login succeeded afterward.
+- A fresh-session UI render showed exactly four setup fields (company name,
+  startup vision/idea, password, confirmation) and the company-workspace
+  button, all within the viewport. The real configured local server reports
+  setup complete and returns the existing CAZ login, so it correctly opens the
+  returning-login screen. Orbit was restarted on ports 3000 and 5000.
+- The isolated test intentionally had no OpenAI key; its asynchronous workflow
+  logged the expected missing-key message after local setup, and no credits were
+  consumed. One optional direct headless screenshot invocation did not exit and
+  was terminated; the successful intercepted UI render and API checks provide
+  the required coverage. No remaining blockers.
+- Commit and push: this verified change is committed in the commit containing
+  this entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
 ## 2026-08-15 10:46:54 IST — Diagnose top-stuck Orbit panel from screencast
 
 ### Request summary and initial decisions
