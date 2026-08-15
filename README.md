@@ -223,6 +223,18 @@ credentials must never be committed.
 - media jobs, Sora fallback and YouTube approval behavior;
 - full Node builds and a combined frontend/backend Docker smoke test.
 
+## Contributors
+
+- **Preethesh Carvalho and the Orbit team** — product vision, experience
+  design, architecture, implementation and hackathon delivery.
+- **OpenAI Codex (AI engineering copilot)** — Google-to-OpenAI migration,
+  multi-agent and Codex integration support, implementation, debugging,
+  verification, security hardening and evaluator documentation.
+
+Codex is credited as an AI collaborator, not as a human team member or a
+separate GitHub account. Final product decisions and ownership remain with the
+Orbit team.
+
 ---
 
 <div align="center">
