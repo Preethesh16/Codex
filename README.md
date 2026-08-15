@@ -8,6 +8,7 @@
 
 [![OpenAI Agents SDK](https://img.shields.io/badge/OpenAI-Agents_SDK-111111?style=for-the-badge)](https://developers.openai.com/)
 [![Codex SDK](https://img.shields.io/badge/OpenAI-Codex_SDK-111111?style=for-the-badge)](https://developers.openai.com/codex/)
+[![Built with Codex](https://img.shields.io/badge/Engineering_Copilot-OpenAI_Codex-10A37F?style=for-the-badge)](#contributors)
 [![GPT Image 2](https://img.shields.io/badge/GPT_Image_2-Creative_Studio-6B4EFF?style=for-the-badge)](https://developers.openai.com/api/docs/models/gpt-image-2)
 [![Sora 2](https://img.shields.io/badge/Sora_2-Video_Demo-FF5A36?style=for-the-badge)](https://developers.openai.com/api/docs/models/sora-2)
 
@@ -225,11 +226,10 @@ credentials must never be committed.
 
 ## Contributors
 
-- **Preethesh Carvalho and the Orbit team** — product vision, experience
-  design, architecture, implementation and hackathon delivery.
-- **OpenAI Codex (AI engineering copilot)** — Google-to-OpenAI migration,
-  multi-agent and Codex integration support, implementation, debugging,
-  verification, security hardening and evaluator documentation.
+| Contributor | Role | Contributions |
+| --- | --- | --- |
+| **Preethesh Carvalho and the Orbit team** | Product creators and maintainers | Product vision, experience design, architecture, implementation and hackathon delivery |
+| **OpenAI Codex** | AI engineering copilot and contributor | Google-to-OpenAI migration, multi-agent and Codex SDK integration, implementation, debugging, verification, security hardening and evaluator documentation |
 
 Codex is credited as an AI collaborator, not as a human team member or a
 separate GitHub account. Final product decisions and ownership remain with the

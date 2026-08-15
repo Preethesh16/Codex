@@ -2366,3 +2366,26 @@ changing `main` or causing external publishing without approval.
 - Documentation-only main commit: `a57dd3b` (`docs: credit Codex
   collaboration`), pushed to `codex/main` under the owner's prior explicit main
   authorization. No unrelated branch was pulled or merged.
+
+### Prompt — final README Codex contributor polish
+
+- The owner requested a final README change making OpenAI Codex's contributor
+  credit unmistakable to evaluators.
+- This batch is limited to evaluator documentation: surface the Codex credit
+  near the top of the README and strengthen the existing contributor record.
+  No application code, external assets, or unrelated branches will be changed.
+
+#### Planned verification and status
+
+- Validate Markdown and contributor references, then publish the README-only
+  milestone to the authorized evaluator branches.
+
+#### Change batch — final contributor presentation
+
+- Added a top-level `Engineering Copilot — OpenAI Codex` badge linked directly
+  to the Contributors section.
+- Replaced the compact contributor bullets with an evaluator-readable table
+  describing the Orbit team's ownership and Codex's concrete AI engineering
+  contributions.
+- Files changed: `README.md`, `whathappendtillnow.md`.
+- Verification, commit, and push status: pending.
