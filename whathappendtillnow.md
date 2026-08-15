@@ -3,6 +3,23 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:02:37 IST — Revoke exposed Google OAuth client secret
+
+### Request summary and security status
+
+- A screenshot confirmed successful OAuth web-client creation and correct local
+  origins/redirects, but it visibly included the generated client secret.
+- Instructed the owner to treat that client as compromised, delete/revoke it,
+  create a replacement with the same non-secret settings, and paste the new ID
+  and secret directly into the ignored MultiVideo environment file without
+  sharing another screenshot.
+- Also advised removing or securely handling the downloaded client JSON. The
+  exposed value is deliberately not reproduced in this log.
+- No credential was copied, tested, stored, logged, or used by Codex. No Google
+  account action, source/configuration change, or external request was made.
+- Files changed: `whathappendtillnow.md` only. No tests were required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:59:54 IST — Confirm OAuth web-client fields
 
 ### Request summary and status
