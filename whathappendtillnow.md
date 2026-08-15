@@ -2573,3 +2573,25 @@ changing `main` or causing external publishing without approval.
   former main head and default-branch head `e666cc2`.
 - Remote ancestry verification passed. A final audit synchronization follows
   so that `main` remains fully inclusive of the documented default branch.
+### Prompt — repair inaudible demo narration
+
+- The owner reported that the published workflow demo narration cannot be
+  heard and requested a corrected upload.
+- Inspect the committed/remote MP4 audio stream and measured levels, remaster
+  the existing AI narration so speech is clearly foregrounded, validate the
+  complete output, and push the corrected asset to the default branch and
+  `main`. No new model call will be made unless the existing narration source
+  cannot be recovered safely.
+- Inspection confirmed that the local, default-branch, and main-branch MP4s
+  were identical and contained a 48 kHz stereo AAC stream, but its measured
+  mean level was only -20.5 dB (maximum -10.8 dB).
+- Remastered the existing completed soundtrack by raising it 8 dB and applying
+  a peak limiter. No OpenAI request or additional model credit was used.
+- Corrected output measures -12.1 dB mean and -2.3 dB maximum, with non-silent
+  audio confirmed throughout the narrated portion. Full 64.2-second decode
+  passed; video remains 1280×720 H.264 and audio remains 48 kHz stereo AAC.
+- Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`, and this audit log.
+- This verified correction is committed and pushed to
+  `codex/orbit-openai-migration` immediately after this entry, then merged and
+  pushed to `codex/main` without force-pushing.
