@@ -2685,3 +2685,14 @@ changing `main` or causing external publishing without approval.
 - This verified milestone is committed and pushed to
   `codex/orbit-openai-migration` immediately after this entry. `main` remains
   unchanged because this prompt did not authorize a main-branch update.
+### Prompt — unpublish gamified UI and run it locally for review
+
+- The owner requested that the previously pushed gamified command-floor change
+  be reverted remotely and that no further UI push occur until the owner has
+  reviewed it running locally.
+- Record the review hold, publish a normal non-force revert of milestone
+  `c736d07`, then restore the gamified implementation only in the local working
+  tree and run Orbit for browser review. `main` was never changed by that
+  milestone and remains untouched.
+- Status: in progress. Do not push the locally restored UI without new explicit
+  owner approval.
