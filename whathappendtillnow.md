@@ -2555,3 +2555,11 @@ changing `main` or causing external publishing without approval.
   the local branch, `codex/orbit-openai-migration`, and `codex/main`. This final
   audit update is committed and pushed to `codex/orbit-openai-migration`
   immediately after the entry.
+### Prompt — merge the default branch into main
+
+- The owner explicitly authorized merging the repository's current default
+  branch into `main` and pushing the result.
+- Verify remote branch heads and divergence, merge without force-pushing,
+  resolve only genuine conflicts, validate the resulting tree, and push to
+  `codex/main`. No deployment or public media publishing is authorized.
+- Status: in progress.
