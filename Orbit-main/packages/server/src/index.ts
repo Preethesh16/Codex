@@ -16,6 +16,9 @@ import { createOrbitAuthStore } from './orbitAuth.js';
 const __dirnameServer = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+app.get('/healthz', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 const browserOrigins = allowedOrigins();
 app.use(cors({
   credentials: true,
@@ -35,7 +38,8 @@ const authRateLimit = createRateLimit(8, 5 * 60_000);
 
 app.get('/api/auth/session', (req, res) => {
   const session = authStore.sessionFromRequest(req);
-  const suggestedLoginName = getContext('default-workspace').companyName;
+  const contextName = getContext('default-workspace').companyName;
+  const suggestedLoginName = authStore.loginName() || (contextName === 'Acme Workspace' ? '' : contextName);
   res.json({
     authenticated: Boolean(session),
     setupRequired: !authStore.hasCredential(),
@@ -46,15 +50,25 @@ app.get('/api/auth/session', (req, res) => {
 
 app.post('/api/auth/setup', authRateLimit, async (req, res) => {
   if (authStore.hasCredential()) return res.status(409).json({ error: 'Orbit login has already been configured.' });
-  const expectedName = getContext('default-workspace').companyName;
-  const requestedName = typeof req.body.loginName === 'string' ? req.body.loginName.trim() : '';
-  if (requestedName.toLowerCase() !== expectedName.toLowerCase()) {
-    return res.status(400).json({ error: `Create the login for ${expectedName}.` });
+  const companyName = typeof (req.body.companyName ?? req.body.loginName) === 'string'
+    ? String(req.body.companyName ?? req.body.loginName).trim()
+    : '';
+  const companyVision = typeof req.body.companyVision === 'string' ? req.body.companyVision.trim() : '';
+  if (!companyName || companyName.length > 80) return res.status(400).json({ error: 'Company name must be between 1 and 80 characters.' });
+  if (companyVision.length < 10 || companyVision.length > 2_000) {
+    return res.status(400).json({ error: 'Describe your startup idea in 10 to 2,000 characters.' });
   }
   try {
-    const session = await authStore.setup(expectedName, req.body.password);
+    const session = await authStore.setup(companyName, req.body.password);
+    startWorkspaceExecution('default-workspace', companyVision, companyName);
     res.setHeader('Set-Cookie', authStore.cookieFor(session));
-    res.status(201).json({ authenticated: true, loginName: session.loginName });
+    res.status(201).json({
+      authenticated: true,
+      loginName: session.loginName,
+      workspaceId: 'default-workspace',
+      companyName,
+      workflowStarted: true,
+    });
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Could not create the Orbit login.' });
   }
@@ -354,6 +368,16 @@ app.post('/api/execution/trigger', async (req, res) => {
     return res.status(400).json({ error: 'Company name must be between 1 and 80 characters.' });
   }
 
+  try {
+    startWorkspaceExecution(workspaceId, String(objective), normalizedCompanyName, req.body.track);
+    res.status(202).json({ success: true, message: 'OpenAI agent workflow started' });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Could not initialize the workspace.' });
+  }
+});
+
+function startWorkspaceExecution(workspaceId: string, objective: string, normalizedCompanyName: string, track?: string): void {
+
   // Clear previous runs
   db.prepare("DELETE FROM tasks WHERE workspace_id = ?").run(workspaceId);
   db.prepare("DELETE FROM local_agent_communication_log").run();
@@ -366,10 +390,10 @@ app.post('/api/execution/trigger', async (req, res) => {
     db.prepare("UPDATE workspaces SET name = ? WHERE id = ?").run(normalizedCompanyName, workspaceId);
   }
   ctx.founderProfile.preferences = ctx.founderProfile.preferences || {};
-  if (req.body.track) {
-    ctx.founderProfile.preferences.track = req.body.track;
+  if (track) {
+    ctx.founderProfile.preferences.track = track;
   }
-  ctx.business.stage = (req.body.track === 'startup') ? 'Document Ingestion' : 'Research';
+  ctx.business.stage = (track === 'startup') ? 'Document Ingestion' : 'Research';
   ctx.business.validationScore = 0;
   ctx.product.features = [];
   ctx.product.userStories = [];
@@ -511,9 +535,7 @@ app.post('/api/execution/trigger', async (req, res) => {
   void runAgentWorkflow(workspaceId, objective).catch((error) => {
     console.error('Orbit workflow failed:', error instanceof Error ? error.message : 'unknown error');
   });
-
-  res.status(202).json({ success: true, message: 'OpenAI agent workflow started' });
-});
+}
 
 async function runAgentWorkflow(workspaceId: string, objective: string): Promise<void> {
   const context = getContext(workspaceId);
@@ -797,7 +819,10 @@ export function getSharedAgentContext(workspaceId: string): string {
 
   let docs = '';
   try {
-    const idxPath = join(__dirnameServer, '../uploads/index.json');
+    const uploadDir = process.env.ORBIT_UPLOAD_DIR
+      ? resolve(process.env.ORBIT_UPLOAD_DIR)
+      : join(__dirnameServer, '../uploads');
+    const idxPath = join(uploadDir, 'index.json');
     if (existsSync(idxPath)) {
       const idx = JSON.parse(readFileSync(idxPath, 'utf8')) as any[];
       docs = idx.map((d) => `- ${d.filename}: ${d.summary || d.preview || ''}`.slice(0, 600)).join('\n');
@@ -1173,6 +1198,15 @@ registerCreative(app, { getContext, getSharedContext: getSharedAgentContext, log
     VALUES (?, ?, ?, ?, ?)
   `).run('msg-' + Math.random().toString(36).substring(7), sender, 'founder', action, JSON.stringify({ title: detail }));
 }});
+
+// Production ships the Vite frontend with this Express API.  Explicit API and
+// generated-media routes above still take precedence; all browser routes fall
+// back to the single-page app.
+const clientDist = resolve(__dirnameServer, '../../client/dist');
+if (existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get('*', (_req, res) => res.sendFile(join(clientDist, 'index.html')));
+}
 
 app.listen(PORT, () => {
   console.log(`[Orbit Server] Running on http://localhost:${PORT}`);

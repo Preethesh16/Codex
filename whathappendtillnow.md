@@ -2304,3 +2304,269 @@ changing `main` or causing external publishing without approval.
 - Documentation commit: `3abc356` (`docs: present Orbit multi-agent demo`),
   pushed to `codex/orbit-openai-migration`. The status-only audit update will be
   committed separately without rewriting that milestone.
+### Prompt — add team-owned UI redesign evidence
+
+- The owner clarified that the two supplied office-style screenshots are
+  team-owned previews of Orbit's upcoming interface and requested that they be
+  presented as future UI work alongside the existing product screenshots and
+  Sora advertisement.
+- The owner then explicitly restricted all work and inspection to this project
+  directory. No external folders, unrelated branches, or external assets will
+  be inspected or imported.
+
+#### Planned verification and status
+
+- Check only `docs/assets/` for the supplied redesign images. If they are not
+  present, prepare a safe in-project destination and document the single manual
+  step required to make the exact image files available.
+- Project-local inspection confirmed that the current Orbit and StartupForge
+  screenshots, CAZ poster, Sora preview, and complete Sora MP4 are present and
+  already linked from the evaluator README.
+- The two exact redesign screenshots are not present as files inside the
+  repository. They were not recreated, substituted, or sourced externally.
+- No implementation or README change was made in this batch. Commit and push
+  status: audit-only update pending.
+
+### Prompt — use the redesign photos supplied inline in chat
+
+- The owner confirmed that the requested redesign photos are the images shown
+  directly in this conversation.
+- The images are visible for review but are not exposed to the repository as
+  original local files. Because work is restricted to the project directory,
+  they cannot be copied into `docs/assets/` until the original files are placed
+  there or attached with accessible file paths.
+- No substitute image, recreation, external search, implementation change, or
+  README claim was made. Commit and push status: pending audit-only update.
+
+### Prompt — credit Codex as a contributor
+
+- The owner requested that OpenAI Codex be listed as a project contributor.
+- The README credit will identify Codex accurately as an AI engineering
+  copilot and summarize its migration, implementation, debugging, testing, and
+  documentation contributions without assigning it a fictional personal
+  identity or GitHub account.
+
+#### Planned verification and status
+
+- Update the root evaluator README, validate Markdown formatting, then commit
+  and publish the documentation milestone.
+
+#### Change batch — contributor credit
+
+- Added a Contributors section crediting the Orbit team as product owners and
+  OpenAI Codex as an AI engineering copilot.
+- The wording explicitly avoids representing Codex as a human contributor or
+  fictional GitHub account and preserves ownership with the Orbit team.
+- Files changed: `README.md`, `whathappendtillnow.md`.
+- Markdown whitespace validation with `git diff --check`: passed.
+- Contributor heading and wording checks with `rg`: passed.
+- Migration commit: `220b45e` (`docs: credit Codex collaboration`), pushed
+  to `codex/orbit-openai-migration`.
+- Documentation-only main commit: `a57dd3b` (`docs: credit Codex
+  collaboration`), pushed to `codex/main` under the owner's prior explicit main
+  authorization. No unrelated branch was pulled or merged.
+
+### Prompt — final README Codex contributor polish
+
+- The owner requested a final README change making OpenAI Codex's contributor
+  credit unmistakable to evaluators.
+- This batch is limited to evaluator documentation: surface the Codex credit
+  near the top of the README and strengthen the existing contributor record.
+  No application code, external assets, or unrelated branches will be changed.
+
+#### Planned verification and status
+
+- Validate Markdown and contributor references, then publish the README-only
+  milestone to the authorized evaluator branches.
+
+#### Change batch — final contributor presentation
+
+- Added a top-level `Engineering Copilot — OpenAI Codex` badge linked directly
+  to the Contributors section.
+- Replaced the compact contributor bullets with an evaluator-readable table
+  describing the Orbit team's ownership and Codex's concrete AI engineering
+  contributions.
+- Files changed: `README.md`, `whathappendtillnow.md`.
+- Markdown whitespace validation with `git diff --check`: passed.
+- Contributor badge, heading, and role checks with `rg`: passed. An initial
+  shell count assertion stopped without modifying files; direct checks passed.
+- Migration commit: `8ae4272` (`docs: finalize Codex contributor credit`),
+  pushed to `codex/orbit-openai-migration`.
+- Documentation-only main commit: `4ecd14b` (`docs: finalize Codex contributor
+  credit`), pushed to `codex/main`. No project code or unrelated branch was
+  changed.
+
+### Prompt — ensure the existing default main branch is updated
+
+- The owner requested that the final README be fixed and published on the
+  existing default `main` branch.
+- The documentation-only change has already been applied directly to
+  `codex/main`; the full migration branch will not be merged merely to deliver
+  README changes, avoiding unrelated history and project changes.
+- Fetched the remote refs and verified that `codex/main` resolves to
+  `4ecd14b1f33dab18c2c0c1651d54735d86b91737`.
+- Verified the remote README contains the Codex badge, Contributors heading,
+  and AI engineering contributor role. Markdown whitespace validation passed.
+- Main push status: complete. Final audit-only commit status: pending.
+
+### Prompt — prepare hackathon submission-form content
+
+- The owner requested paste-ready evaluator copy for the submission fields
+  describing Orbit's idea, value, and use of Codex.
+- The response will be grounded in the repository README and implemented
+  architecture, including the OpenAI multi-agent workflow, StartupForge,
+  generated images and Sora video, voice/TTS, privacy controls, approvals, and
+  observable execution. It will avoid unsupported claims or invented results.
+- Reviewed the root, Orbit, and StartupForge README descriptions to align the
+  submission copy with implemented behavior and supplied demo evidence.
+- No implementation file, external service, or submission form was modified.
+  Audit-only update commit and push status: pending.
+
+### Prompt — add prior Codex community context to submission copy
+
+- The owner requested that the Codex-use answer mention prior familiarity with
+  Codex and conversations with Siddhant Sadangi, described by the owner as an
+  OpenAI developer-community member based in Dublin, Ireland.
+- The wording will distinguish community participation from OpenAI employment
+  and will connect that earlier exposure honestly to the team's decision to use
+  Codex as both a product capability and engineering copilot.
+- No implementation file or external submission was modified. Audit-only
+  update status: pending.
+
+### Prompt — record and publish a short full-workflow demo
+
+- The owner authorized a short browser-recorded Orbit demonstration and a push
+  to the existing default `main` branch.
+- The recording will use the existing local applications and already-generated
+  media to avoid new OpenAI credit usage. It should demonstrate Orbit Mission
+  Control, the multi-agent workflow, marketing image and Sora video evidence,
+  voice/media capabilities, and StartupForge's Codex build/repair workflow.
+- The final recording will be compressed for repository delivery, linked from
+  the evaluator README, verified locally, and published without pulling or
+  merging unrelated branches.
+
+#### Planned verification and status
+
+- Inspect local run scripts and demo fixtures, start only required services,
+  record the browser workflow, validate the video with `ffprobe`, check
+  repository size and Markdown links, then publish to the authorized branches.
+  Status: in progress.
+
+#### Change batch — browser workflow recording and evaluator entry
+
+- Recorded a real local browser walkthrough of Orbit Mission Control,
+  specialist departments, the Marketing studio, Creative & Voice, Code support,
+  StartupForge's Codex pipeline, and its generated-project library.
+- Reused the existing GPT Image poster, complete Sora advertisement, stored
+  agent/build evidence, and completed 49-file StartupForge project. No OpenAI
+  generation request or other model-credit usage occurred during recording.
+- Preserved the Sora advertisement's original audio and added a labeled poster
+  interlude after browser paint-stream inspection found the static poster frame
+  was skipped in the first raw capture.
+- Added a four-panel evaluator preview and a prominent link near the top of the
+  root README.
+- Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`,
+  `docs/assets/orbit-full-workflow-demo-preview.jpg`, and this audit log.
+- Video validation with `ffprobe`: passed; 64.2 seconds, 1280×720 H.264
+  video, AAC audio, 2,041,536 bytes. Full decode with `ffmpeg`: passed.
+- Preview validation with ImageMagick: passed; 1280×720 JPEG, 105,723
+  bytes. README link and Markdown whitespace checks: passed.
+- The first Orbit client start command passed a host flag at the wrong npm
+  layer; it exited without changing files and the corrected command started the
+  client. A thumbnail shell loop also had a quoting error; the single-command
+  replacement succeeded. During build-event inspection, a temporary query file
+  was accidentally directed to `/tmp`; it was immediately deleted and no
+  external project or user data was read.
+- The temporary recorder dependencies, browser profile, raw recording, and
+  contact sheets were deleted after validation. Only the final MP4 and preview
+  remain. The temporary Orbit client, StartupForge server/client, and asset
+  server were stopped; the pre-existing Orbit API process was left untouched.
+- Migration milestone: `84bf929` (`docs: add full Orbit workflow demo`), pushed
+  to `codex/orbit-openai-migration`.
+- Documentation/media-only main milestone: `bfbe88b` (`docs: add full Orbit
+  workflow demo`), pushed to `codex/main` under the owner's explicit
+  authorization. The remote main tree and README links were fetched and
+  verified after the push. No unrelated branch or application change was
+  merged into main.
+
+### Prompt — ensure the workflow demo is on the default branch
+
+- The owner requested that the completed workflow-demo delivery also be merged
+  to the GitHub repository's default branch.
+- The remote symbolic default branch will be verified first. If it is already
+  `main`, no redundant merge or unrelated history change will be created.
+- `git ls-remote --symref codex HEAD` confirmed that GitHub's default branch is
+  `orbit-openai-migration`, currently at `57907d9` before this audit update.
+- The workflow-demo assets and README entry were already delivered to that
+  default branch in milestone `84bf929`; `main` independently contains the same
+  documentation/media delivery at `bfbe88b`.
+- No redundant merge was created. Default-branch content verification passed;
+  final audit-only push status: pending.
+
+### Prompt — summarize the technology stack
+
+- The owner requested an evaluator-friendly summary of the technologies used
+  across Orbit, StartupForge, MultiVideo, OpenAI models, privacy/security,
+  testing, and delivery.
+- The answer will be grounded in repository manifests and current README
+  documentation. No implementation file or external service will be changed.
+- Reviewed the package manifests for Orbit, StartupForge, and MultiVideo plus
+  repository documentation covering models, privacy, testing, sandboxing,
+  publishing, and Docker delivery.
+- No implementation file or external service was changed. Audit-only commit
+  and push status: pending.
+
+### Prompt — add OpenAI voiceover to the workflow demo
+
+- The owner authorized generating a narration track for the existing 64-second
+  workflow demo and publishing the updated video.
+- Official OpenAI documentation was checked before the API call; it confirms
+  that `tts-1` is the speed-optimized text-to-speech model available through
+  the Audio Speech endpoint.
+- Generate one concise narration with `tts-1`, mix it with the Sora segment's
+  original audio at a lower level, validate timing and decoding, update the
+  demo asset, and publish the media-only revision to the default branch and
+  `main`. Credentials will remain in the ignored server environment file and
+  will not be printed or committed.
+- Status: in progress.
+
+#### Change batch — narrated evaluator demo
+
+- Generated one narration track with OpenAI `tts-1` using the `onyx` voice;
+  no API key or credential was printed, logged, or added to Git.
+- Mixed the narration with the existing Sora advertisement audio at a reduced
+  background level, then normalized the combined soundtrack for clear speech.
+- Replaced `docs/assets/orbit-full-workflow-demo.mp4` with the narrated version
+  and updated `README.md` so evaluators know the demo includes OpenAI TTS.
+- Final media validation passed: 64.2 seconds, 1280×720 H.264 video, 48 kHz
+  stereo AAC audio, 3,120,069 bytes. A complete `ffmpeg` decode also passed.
+- Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`, and this audit log.
+- Temporary narration and mixing files are removed after the final asset is
+  installed.
+- Default-branch milestone: `af56316` (`docs: add voiceover to Orbit workflow
+  demo`), pushed to `codex/orbit-openai-migration`.
+- Documentation/media-only main milestone: `76988ba` (`docs: add voiceover to
+  Orbit workflow demo`), pushed to `codex/main` under the owner's explicit
+  authorization. The remote default branch remains `orbit-openai-migration`.
+- Remote verification passed: the narrated MP4 has the same Git object hash on
+  the local branch, `codex/orbit-openai-migration`, and `codex/main`. This final
+  audit update is committed and pushed to `codex/orbit-openai-migration`
+  immediately after the entry.
+### Prompt — merge the default branch into main
+
+- The owner explicitly authorized merging the repository's current default
+  branch into `main` and pushing the result.
+- Verify remote branch heads and divergence, merge without force-pushing,
+  resolve only genuine conflicts, validate the resulting tree, and push to
+  `codex/main`. No deployment or public media publishing is authorized.
+- Remote inspection found five main-only documentation/media commits and 25
+  default-only commits after the common base. A normal merge preserved both
+  histories; the only content conflict was the audit log, where `main` ended
+  before the newer default-branch entries. Those entries were retained.
+- The merged application tree matches `codex/orbit-openai-migration` exactly;
+  only this audit entry adds content beyond the default branch.
+- Verification passed: root `git diff --check`, complete demo-video decode,
+  Orbit core/server/client production builds, and all 16 Orbit server tests.
+- Merge commit and `codex/main` push status: pending.

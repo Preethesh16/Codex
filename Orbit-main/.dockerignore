@@ -1,0 +1,12 @@
+node_modules
+packages/*/node_modules
+packages/*/dist
+*.tsbuildinfo
+packages/*/tsconfig.tsbuildinfo
+uploads
+.env
+.env.*
+!.env.example
+npm-debug.log*
+coverage
+.git

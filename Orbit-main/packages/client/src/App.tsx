@@ -73,9 +73,40 @@ const DEPT_SEQUENCE = [
 ];
 const STARTUPFORGE_CLIENT_URL = import.meta.env.VITE_STARTUPFORGE_CLIENT_URL || 'http://localhost:5173';
 
+function renderInlineMarkdown(value: string, keyPrefix: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const pattern = /(\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\(([^\s)]+)\)|\*([^*]+)\*|_([^_]+)_)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let index = 0;
+
+  while ((match = pattern.exec(value)) !== null) {
+    if (match.index > lastIndex) parts.push(value.slice(lastIndex, match.index));
+    const key = `${keyPrefix}-${index++}`;
+    if (match[2] || match[3]) {
+      parts.push(<strong key={key} className="font-semibold text-stone-900">{match[2] || match[3]}</strong>);
+    } else if (match[4]) {
+      parts.push(<code key={key} className="rounded bg-stone-900/5 px-1 py-0.5 font-mono text-[0.9em] text-stone-800">{match[4]}</code>);
+    } else if (match[5] && match[6]) {
+      const href = match[6];
+      const safeHref = /^https?:\/\//i.test(href) || /^mailto:/i.test(href);
+      parts.push(safeHref
+        ? <a key={key} href={href} target="_blank" rel="noreferrer" className="font-medium text-[#a53600] underline underline-offset-2 hover:text-[#812800]">{match[5]}</a>
+        : match[0]);
+    } else {
+      parts.push(<em key={key}>{match[7] || match[8]}</em>);
+    }
+    lastIndex = pattern.lastIndex;
+  }
+  if (lastIndex < value.length) parts.push(value.slice(lastIndex));
+  return parts;
+}
+
 export default function App() {
-  const [authMode, setAuthMode] = useState<'loading' | 'setup' | 'login' | 'authenticated'>('loading');
+  const [authMode, setAuthMode] = useState<'loading' | 'landing' | 'setup' | 'login' | 'authenticated'>('loading');
+  const [firstRunSetupAvailable, setFirstRunSetupAvailable] = useState(false);
   const [authLoginName, setAuthLoginName] = useState('');
+  const [authCompanyVision, setAuthCompanyVision] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authError, setAuthError] = useState('');
@@ -108,7 +139,8 @@ export default function App() {
   const [chatHistories, setChatHistories] = useState<Record<string, ChatMessage[]>>({});
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Marketing Studio (GPT Image + Sora adapter)
   const [bananaImages, setBananaImages] = useState<Array<{ type: string; prompt: string }>>([]);
@@ -220,8 +252,9 @@ export default function App() {
         return response.json();
       })
       .then((data) => {
-        setAuthLoginName(data.loginName || data.suggestedLoginName || 'CAZ');
-        setAuthMode(data.authenticated ? 'authenticated' : data.setupRequired ? 'setup' : 'login');
+        setAuthLoginName(data.loginName || data.suggestedLoginName || '');
+        setFirstRunSetupAvailable(Boolean(data.setupRequired));
+        setAuthMode(data.authenticated ? 'authenticated' : 'landing');
       })
       .catch((error) => {
         setAuthError(error instanceof Error ? error.message : 'Could not check the Orbit login.');
@@ -247,6 +280,10 @@ export default function App() {
       setAuthError('Passwords do not match.');
       return;
     }
+    if (authMode === 'setup' && authCompanyVision.trim().length < 10) {
+      setAuthError('Describe your startup idea in at least 10 characters.');
+      return;
+    }
     setIsAuthenticating(true);
     setAuthError('');
     try {
@@ -254,11 +291,20 @@ export default function App() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loginName: authLoginName, password: authPassword }),
+        body: JSON.stringify(authMode === 'setup'
+          ? { companyName: authLoginName, companyVision: authCompanyVision.trim(), password: authPassword }
+          : { loginName: authLoginName, password: authPassword }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not sign in to Orbit.');
       setAuthLoginName(data.loginName);
+      if (authMode === 'setup') {
+        setWorkspaceId(data.workspaceId || 'default-workspace');
+        setInputCompanyName(data.companyName || data.loginName);
+        setHasIdeaLaunched(true);
+        setActiveView('Research');
+        setAuthCompanyVision('');
+      }
       setAuthPassword('');
       setAuthPasswordConfirm('');
       setAuthMode('authenticated');
@@ -278,8 +324,29 @@ export default function App() {
       setAuthError('');
       setContext(null);
       setTasks([]);
-      setAuthMode('login');
+      setAuthMode('landing');
     }
+  };
+
+  const openLogin = () => {
+    setAuthError('');
+    setAuthPassword('');
+    setAuthPasswordConfirm('');
+    setAuthMode('login');
+  };
+
+  const openCompanySetup = () => {
+    setAuthError('');
+    setAuthPassword('');
+    setAuthPasswordConfirm('');
+    if (!firstRunSetupAvailable) {
+      setAuthMode('login');
+      setAuthError('This Orbit workspace is already set up. Sign in first, then use Add company from the workspace.');
+      return;
+    }
+    setAuthLoginName('');
+    setAuthCompanyVision('');
+    setAuthMode('setup');
   };
 
   const handleWorkspaceChange = (nextWorkspaceId: string) => {
@@ -342,9 +409,18 @@ export default function App() {
     }
   }, [activeView]);
 
-  // Scroll chat to bottom
+  // A department switch must start at its header, regardless of how far the
+  // founder had scrolled in the previous view.
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    mainContentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [activeView, workspaceId]);
+
+  // Scroll only the conversation pane. scrollIntoView would also move the
+  // outer workspace scroller and make the department header disappear above
+  // the viewport.
+  useEffect(() => {
+    const chatPane = chatScrollRef.current;
+    if (chatPane) chatPane.scrollTo({ top: chatPane.scrollHeight, behavior: 'smooth' });
   }, [chatHistories, activeView]);
 
   // Load saved pitch deck when entering Brand stage
@@ -960,7 +1036,7 @@ export default function App() {
       <div className="relative min-h-screen flex items-center justify-center bg-[#fff8f6] overflow-hidden text-stone-850 px-4">
         <div className="glow-orb w-[700px] h-[700px] bg-amber-100/30 top-[-300px] left-[-300px]" />
         <div className="glow-orb w-[600px] h-[600px] bg-orange-100/20 bottom-[-300px] right-[-300px]" />
-        <div className="w-full max-w-md z-10">
+        <div className={`w-full ${authMode === 'setup' ? 'max-w-xl' : 'max-w-md'} z-10`}>
           <div className="text-center mb-6">
             <div className="mx-auto mb-4 flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#a53600] to-[#cc490e] text-white shadow-[0_4px_20px_rgba(165,54,0,0.15)]">
               <FolderDot className="w-8 h-8" />
@@ -972,32 +1048,86 @@ export default function App() {
           <div className="glass-panel rounded-2xl p-6 shadow-2xl bg-white/80">
             {authMode === 'loading' ? (
               <p className="text-center text-sm text-stone-600">Checking your login…</p>
+            ) : authMode === 'landing' ? (
+              <div className="flex flex-col gap-5">
+                <div>
+                  <h2 className="text-xl font-bold text-stone-900 font-outfit">Start your founder workspace</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-500">
+                    Create your company workspace if you are new to Orbit, or sign in to continue where you left off.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openCompanySetup}
+                  className="w-full flex items-center justify-between gap-4 rounded-xl border border-[#a53600]/25 bg-[#fff1ec] p-4 text-left hover:border-[#a53600]/55 hover:bg-[#ffe9df] transition"
+                >
+                  <span>
+                    <span className="block text-sm font-bold text-stone-900">Create my company</span>
+                    <span className="mt-1 block text-xs text-stone-600">Add your company name, idea, and a private password.</span>
+                  </span>
+                  <ArrowRight className="w-5 h-5 shrink-0 text-[#a53600]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={openLogin}
+                  className="w-full flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white p-4 text-left hover:border-[#a53600]/35 hover:bg-stone-50 transition"
+                >
+                  <span>
+                    <span className="block text-sm font-bold text-stone-900">I already have an account</span>
+                    <span className="mt-1 block text-xs text-stone-600">Use your company name and password to return.</span>
+                  </span>
+                  <ArrowRight className="w-5 h-5 shrink-0 text-stone-500" />
+                </button>
+                {!firstRunSetupAvailable && (
+                  <p className="text-[10px] leading-relaxed text-stone-500 text-center">
+                    This local Orbit installation already has a founder login. Sign in to add another company workspace.
+                  </p>
+                )}
+              </div>
             ) : (
               <form onSubmit={handleAuthentication} className="flex flex-col gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-stone-900 font-outfit">
-                    {authMode === 'setup' ? `Create a password for ${authLoginName || 'CAZ'}` : 'Welcome back'}
+                    {authMode === 'setup' ? 'Set up your company' : 'Welcome back'}
                   </h2>
                   <p className="mt-1 text-xs leading-relaxed text-stone-500">
                     {authMode === 'setup'
-                      ? 'This is the one-time setup. Your password is hashed locally and is never stored as readable text.'
+                      ? 'Tell Orbit what you are building and create the password you will use to return. This happens only once.'
                       : 'Enter your company name and password to open Orbit.'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Company login</label>
+                  <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">
+                    {authMode === 'setup' ? 'Company name' : 'Company login'}
+                  </label>
                   <input
                     type="text"
                     name="username"
                     autoComplete="username"
                     value={authLoginName}
                     onChange={(e) => setAuthLoginName(e.target.value)}
-                    readOnly={authMode === 'setup'}
-                    className="orbit-readable-input w-full px-4 py-2.5 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] read-only:opacity-75"
+                    placeholder={authMode === 'setup' ? 'e.g. CAZ' : 'Your company name'}
+                    className="orbit-readable-input w-full px-4 py-2.5 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600]"
                     required
                   />
                 </div>
+
+                {authMode === 'setup' && (
+                  <div>
+                    <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Startup vision / idea</label>
+                    <textarea
+                      name="company-vision"
+                      value={authCompanyVision}
+                      onChange={(e) => setAuthCompanyVision(e.target.value)}
+                      minLength={10}
+                      maxLength={2000}
+                      placeholder="What are you building, who is it for, and what problem does it solve?"
+                      className="orbit-readable-input w-full h-24 p-4 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] placeholder:text-stone-400 resize-none leading-relaxed"
+                      required
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Password</label>
@@ -1035,10 +1165,19 @@ export default function App() {
 
                 <button
                   type="submit"
-                  disabled={isAuthenticating || !authLoginName.trim() || authPassword.length < 8}
+                  disabled={isAuthenticating || !authLoginName.trim() || authPassword.length < 8 || (authMode === 'setup' && authCompanyVision.trim().length < 10)}
                   className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#a53600] to-[#cc490e] hover:from-[#812800] hover:to-[#a53600] rounded-xl transition shadow-[0_4px_25px_rgba(165,54,0,0.12)] disabled:opacity-50"
                 >
-                  {isAuthenticating ? 'Please wait…' : authMode === 'setup' ? 'Create password and enter Orbit' : 'Sign in'}
+                  {isAuthenticating
+                    ? authMode === 'setup' ? 'Setting up your workspace…' : 'Signing in…'
+                    : authMode === 'setup' ? 'Create company workspace' : 'Sign in'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAuthError(''); setAuthMode('landing'); }}
+                  className="text-xs font-medium text-stone-500 hover:text-[#a53600] transition"
+                >
+                  Back to start
                 </button>
               </form>
             )}
@@ -1305,7 +1444,7 @@ export default function App() {
         </header>
 
         {/* MAIN BODY: VIEW SWITCHER */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+        <div ref={mainContentRef} data-orbit-scroll-region="main" className="flex-1 min-h-0 overflow-y-auto p-6">
           
           {activeView === 'overview' ? (
             /* MISSION CONTROL GENERAL OVERVIEW */
@@ -1706,7 +1845,7 @@ export default function App() {
                 </div>
 
                 {/* Message logs */}
-                <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 mb-4 scrollbar-thin">
+                <div ref={chatScrollRef} data-orbit-scroll-region="chat" className="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 mb-4 scrollbar-thin">
                   {(chatHistories[activeView] || []).map((msg, idx) => (
                     <div 
                       key={idx} 
@@ -1720,15 +1859,18 @@ export default function App() {
                           ? 'bg-[#a53600]/10 text-stone-850 border-[#a53600]/20' 
                           : 'bg-[#fff1ec]/95 text-stone-800 border-stone-200'
                       }`}>
-                        {/* Markdown simple parser */}
+                        {/* Display Markdown cleanly, while msg.text remains the raw AI output for copy and downstream tools. */}
                         {msg.text.split('\n').map((line, lIdx) => {
                           if (line.startsWith('### ')) {
-                            return <h4 key={lIdx} className="font-bold text-stone-950 text-xs mb-1.5 mt-2 font-outfit">{line.replace('### ', '')}</h4>;
+                            return <h4 key={lIdx} className="font-bold text-stone-950 text-xs mb-1.5 mt-2 font-outfit">{renderInlineMarkdown(line.replace('### ', ''), `${activeView}-${idx}-${lIdx}`)}</h4>;
                           }
-                          if (line.startsWith('- ')) {
-                            return <li key={lIdx} className="list-disc list-inside ml-2 text-stone-600 my-0.5">{line.replace('- ', '')}</li>;
+                          if (line.startsWith('- ') || line.startsWith('* ')) {
+                            return <li key={lIdx} className="list-disc list-inside ml-2 text-stone-600 my-0.5">{renderInlineMarkdown(line.slice(2), `${activeView}-${idx}-${lIdx}`)}</li>;
                           }
-                          return <p key={lIdx} className="my-0.5">{line}</p>;
+                          if (/^\d+\.\s/.test(line)) {
+                            return <li key={lIdx} className="list-decimal list-inside ml-2 text-stone-600 my-0.5">{renderInlineMarkdown(line.replace(/^\d+\.\s/, ''), `${activeView}-${idx}-${lIdx}`)}</li>;
+                          }
+                          return <p key={lIdx} className="my-0.5">{renderInlineMarkdown(line, `${activeView}-${idx}-${lIdx}`)}</p>;
                         })}
                       </div>
                       {msg.sender === 'agent' && (
@@ -1791,7 +1933,7 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  <div ref={chatEndRef} />
+                  <div aria-hidden="true" />
                 </div>
 
                 {/* Input box */}
@@ -2094,14 +2236,14 @@ export default function App() {
                         {adKit.video ? (
                           <video src={adKit.video} controls className="w-full rounded-xl border border-stone-200" />
                         ) : (
-                          <span className="text-[10px] text-stone-500 italic">{adKit.note}</span>
+                          <span className="text-[10px] text-stone-500 italic">{renderInlineMarkdown(String(adKit.note || ''), 'ad-note')}</span>
                         )}
                         {(adKit.storyboard || []).length > 0 && (
                           <div className="flex flex-col gap-1 max-h-36 overflow-y-auto">
                             <span className="text-[9px] text-stone-500 uppercase font-mono">Storyboard</span>
                             {adKit.storyboard.map((s: any, idx: number) => (
                               <div key={idx} className="p-2 rounded-lg border border-stone-200 bg-[#fff1ec] text-[10px] text-stone-600">
-                                <b className="text-[#a53600]">Shot {idx + 1}</b> ({s.durationSec}s): {s.scene} — <i>"{s.onScreenText}"</i>
+                                <b className="text-[#a53600]">Shot {idx + 1}</b> ({s.durationSec}s): {renderInlineMarkdown(String(s.scene || ''), `storyboard-scene-${idx}`)} — <i>"{renderInlineMarkdown(String(s.onScreenText || ''), `storyboard-text-${idx}`)}"</i>
                               </div>
                             ))}
                           </div>
@@ -2159,12 +2301,12 @@ export default function App() {
                     {captionResult && (
                       <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
                         {(captionResult.captions || []).map((c: string, idx: number) => (
-                          <div key={idx} className="p-2.5 rounded-lg border border-stone-200 bg-[#fff1ec] text-[11px] text-stone-700 whitespace-pre-wrap">{c}</div>
+                          <div key={idx} className="p-2.5 rounded-lg border border-stone-200 bg-[#fff1ec] text-[11px] text-stone-700 whitespace-pre-wrap">{renderInlineMarkdown(c, `caption-${idx}`)}</div>
                         ))}
                         {captionResult.voScript && (
                           <div className="border-t border-stone-200/80 pt-2 flex flex-col gap-2">
                             <span className="text-[9px] text-stone-500 uppercase font-mono">Voiceover script</span>
-                            <p className="text-[11px] text-stone-700 italic">"{captionResult.voScript}"</p>
+                            <p className="text-[11px] text-stone-700 italic">"{renderInlineMarkdown(captionResult.voScript, 'voiceover-script')}"</p>
                             <button
                               onClick={() => generateVoiceover(captionResult.voScript)}
                               disabled={isGeneratingVo}
@@ -2215,7 +2357,7 @@ export default function App() {
                         <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
                           {(deckResult.slides || []).map((s: any, idx: number) => (
                             <div key={idx} className="px-2.5 py-1.5 rounded-lg border border-stone-200 bg-[#fff1ec] text-[10px] text-stone-600">
-                              <b>{idx + 1}.</b> {s.title}
+                              <b>{idx + 1}.</b> {renderInlineMarkdown(String(s.title || ''), `deck-title-${idx}`)}
                             </div>
                           ))}
                         </div>
