@@ -3,6 +3,37 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 11:28:42 IST — Render agent Markdown while preserving raw AI text
+
+### Request summary and initial decisions
+
+- Remove raw Markdown markers such as `**` from all visible agent replies so
+  generated content reads naturally in Orbit.
+- Preserve each original agent response exactly for Copy and for downstream AI
+  actions such as poster/video generation, rather than sending a formatted or
+  stripped version.
+- Add lightweight safe rendering for common Markdown presentation features
+  without changing stored messages or requiring a new dependency.
+
+### Changes and verification
+
+- Added safe inline Markdown rendering for bold, emphasis, code, safe web/mail
+  links, headings, bulleted lists, and numbered lists in every department
+  conversation. Raw Markdown markers no longer display to the founder.
+- The original `msg.text` is unchanged: Copy, Finance refinement, and
+  Marketing poster/video actions continue to receive the exact raw AI response,
+  including its Markdown markers and full prompt context.
+- File changed: `Orbit-main/packages/client/src/App.tsx` and this journal.
+- Client production build passed and all 16 server tests passed. An
+  authenticated browser check opened Research and verified that the visible
+  welcome message contained no raw bold markers while a semantic bold element
+  rendered; the screenshot was visually inspected.
+- No OpenAI/media API request was made and no credits were used. Errors or
+  blockers: none.
+- Commit and push: this verified change is committed in the commit containing
+  this entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
 ## 2026-08-15 11:27 IST — Preserve Ashish's new folders
 
 - The owner instructed Codex not to pull, merge, inspect, or modify two folders

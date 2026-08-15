@@ -73,6 +73,35 @@ const DEPT_SEQUENCE = [
 ];
 const STARTUPFORGE_CLIENT_URL = import.meta.env.VITE_STARTUPFORGE_CLIENT_URL || 'http://localhost:5173';
 
+function renderInlineMarkdown(value: string, keyPrefix: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const pattern = /(\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\(([^\s)]+)\)|\*([^*]+)\*|_([^_]+)_)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let index = 0;
+
+  while ((match = pattern.exec(value)) !== null) {
+    if (match.index > lastIndex) parts.push(value.slice(lastIndex, match.index));
+    const key = `${keyPrefix}-${index++}`;
+    if (match[2] || match[3]) {
+      parts.push(<strong key={key} className="font-semibold text-stone-900">{match[2] || match[3]}</strong>);
+    } else if (match[4]) {
+      parts.push(<code key={key} className="rounded bg-stone-900/5 px-1 py-0.5 font-mono text-[0.9em] text-stone-800">{match[4]}</code>);
+    } else if (match[5] && match[6]) {
+      const href = match[6];
+      const safeHref = /^https?:\/\//i.test(href) || /^mailto:/i.test(href);
+      parts.push(safeHref
+        ? <a key={key} href={href} target="_blank" rel="noreferrer" className="font-medium text-[#a53600] underline underline-offset-2 hover:text-[#812800]">{match[5]}</a>
+        : match[0]);
+    } else {
+      parts.push(<em key={key}>{match[7] || match[8]}</em>);
+    }
+    lastIndex = pattern.lastIndex;
+  }
+  if (lastIndex < value.length) parts.push(value.slice(lastIndex));
+  return parts;
+}
+
 export default function App() {
   const [authMode, setAuthMode] = useState<'loading' | 'landing' | 'setup' | 'login' | 'authenticated'>('loading');
   const [firstRunSetupAvailable, setFirstRunSetupAvailable] = useState(false);
@@ -1830,15 +1859,18 @@ export default function App() {
                           ? 'bg-[#a53600]/10 text-stone-850 border-[#a53600]/20' 
                           : 'bg-[#fff1ec]/95 text-stone-800 border-stone-200'
                       }`}>
-                        {/* Markdown simple parser */}
+                        {/* Display Markdown cleanly, while msg.text remains the raw AI output for copy and downstream tools. */}
                         {msg.text.split('\n').map((line, lIdx) => {
                           if (line.startsWith('### ')) {
-                            return <h4 key={lIdx} className="font-bold text-stone-950 text-xs mb-1.5 mt-2 font-outfit">{line.replace('### ', '')}</h4>;
+                            return <h4 key={lIdx} className="font-bold text-stone-950 text-xs mb-1.5 mt-2 font-outfit">{renderInlineMarkdown(line.replace('### ', ''), `${activeView}-${idx}-${lIdx}`)}</h4>;
                           }
-                          if (line.startsWith('- ')) {
-                            return <li key={lIdx} className="list-disc list-inside ml-2 text-stone-600 my-0.5">{line.replace('- ', '')}</li>;
+                          if (line.startsWith('- ') || line.startsWith('* ')) {
+                            return <li key={lIdx} className="list-disc list-inside ml-2 text-stone-600 my-0.5">{renderInlineMarkdown(line.slice(2), `${activeView}-${idx}-${lIdx}`)}</li>;
                           }
-                          return <p key={lIdx} className="my-0.5">{line}</p>;
+                          if (/^\d+\.\s/.test(line)) {
+                            return <li key={lIdx} className="list-decimal list-inside ml-2 text-stone-600 my-0.5">{renderInlineMarkdown(line.replace(/^\d+\.\s/, ''), `${activeView}-${idx}-${lIdx}`)}</li>;
+                          }
+                          return <p key={lIdx} className="my-0.5">{renderInlineMarkdown(line, `${activeView}-${idx}-${lIdx}`)}</p>;
                         })}
                       </div>
                       {msg.sender === 'agent' && (
