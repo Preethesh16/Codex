@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 08:41:30 IST — Request Orbit login persistence and logout
+
+- The owner requested a logout control and persistent CAZ login credentials.
+- No authentication change was made yet because choosing the identity method is
+  security-sensitive and changes the login experience. Plaintext credentials
+  will not be committed, written to this journal, or stored in browser local
+  storage.
+- Recommended implementation: a CAZ access code whose hash is configured
+  server-side, an HTTP-only same-site session cookie, protected Orbit routes,
+  and a logout endpoint/button that clears the session. Google login is the
+  alternative if account-based identity is preferred.
+- Awaiting the owner's choice between access-code login and Google login. No
+  implementation files changed and no verification was required. This entry is
+  pushed in its audit-only commit to `codex/orbit-openai-migration`.
+
 ## 2026-08-15 08:40:46 IST — Explain Creative and Conflict agents
 
 - Explained for a beginner that Creative converts business/marketing direction
