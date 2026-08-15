@@ -6,7 +6,6 @@ import {
   Terminal, 
   AlertTriangle, 
   Clock, 
-  Users, 
   Activity, 
   DollarSign, 
   FileText, 
@@ -44,9 +43,11 @@ import {
   Upload,
   Plus,
   Copy,
-  LogOut
+  LogOut,
+  X
 } from 'lucide-react';
 import { StartupContext, AgentMessage, ExecutionTask, Conflict } from 'orbit-core';
+import AgentOfficeFloor, { DepartmentRoom } from './AgentOfficeFloor';
 
 interface ChatMessage {
   sender: 'user' | 'agent';
@@ -130,6 +131,7 @@ export default function App() {
   // Navigation & States
   const [hasIdeaLaunched, setHasIdeaLaunched] = useState(false);
   const [activeView, setActiveView] = useState<'overview' | string>('overview');
+  const [officeChatDepartment, setOfficeChatDepartment] = useState<string | null>(null);
 
   // Vault Form State
   const [vaultKeyType, setVaultKeyType] = useState('bank_account');
@@ -388,16 +390,17 @@ export default function App() {
 
   // Prepopulate agent chat welcome messages
   useEffect(() => {
-    if (activeView !== 'overview') {
-      const existingHistory = chatHistories[activeView];
+    const chatDepartment = officeChatDepartment || (activeView !== 'overview' ? activeView : '');
+    if (chatDepartment) {
+      const existingHistory = chatHistories[chatDepartment];
       if (!existingHistory) {
-        let welcomeText = `Welcome to the **${activeView} Department**. I have loaded our active startup context. Ask me anything about our plans, deliverables, or strategy!`;
-        if (activeView === 'Validation') {
+        let welcomeText = `Welcome to the **${chatDepartment} Department**. I have loaded our active startup context. Ask me anything about our plans, deliverables, or strategy!`;
+        if (chatDepartment === 'Validation') {
           welcomeText = `Welcome to the **Validation Department**. Let's review our PMF and feasibility metrics. To proceed, please enter your Budget, target description, and exact Financial Stage in the right-side configuration board.`;
         }
         setChatHistories(prev => ({
           ...prev,
-          [activeView]: [
+          [chatDepartment]: [
             {
               sender: 'agent',
               text: welcomeText,
@@ -407,7 +410,7 @@ export default function App() {
         }));
       }
     }
-  }, [activeView]);
+  }, [activeView, officeChatDepartment, chatHistories]);
 
   // A department switch must start at its header, regardless of how far the
   // founder had scrolled in the previous view.
@@ -653,10 +656,11 @@ export default function App() {
   };
 
   // Chat submit
-  const handleChatSubmit = async (e: React.FormEvent) => {
+  const handleChatSubmit = async (e: React.FormEvent, departmentOverride?: string) => {
     e.preventDefault();
     if (!chatInput.trim() || isChatLoading) return;
 
+    const chatDepartment = departmentOverride || activeView;
     const userMsg = chatInput;
     setChatInput('');
     setIsChatLoading(true);
@@ -669,14 +673,14 @@ export default function App() {
 
     setChatHistories(prev => ({
       ...prev,
-      [activeView]: [...(prev[activeView] || []), newMsg]
+      [chatDepartment]: [...(prev[chatDepartment] || []), newMsg]
     }));
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ department: activeView, message: userMsg, workspaceId })
+        body: JSON.stringify({ department: chatDepartment, message: userMsg, workspaceId })
       });
       
       if (res.ok) {
@@ -688,7 +692,7 @@ export default function App() {
         };
         setChatHistories(prev => ({
           ...prev,
-          [activeView]: [...(prev[activeView] || []), agentMsg]
+          [chatDepartment]: [...(prev[chatDepartment] || []), agentMsg]
         }));
       }
     } catch (err) {
@@ -1033,7 +1037,7 @@ export default function App() {
 
   if (authMode !== 'authenticated') {
     return (
-      <div className="relative min-h-screen flex items-center justify-center bg-[#fff8f6] overflow-hidden text-stone-850 px-4">
+      <div className="orbit-auth-shell relative min-h-screen flex items-center justify-center bg-[#fff8f6] overflow-hidden text-stone-850 px-4">
         <div className="glow-orb w-[700px] h-[700px] bg-amber-100/30 top-[-300px] left-[-300px]" />
         <div className="glow-orb w-[600px] h-[600px] bg-orange-100/20 bottom-[-300px] right-[-300px]" />
         <div className={`w-full ${authMode === 'setup' ? 'max-w-xl' : 'max-w-md'} z-10`}>
@@ -1349,7 +1353,7 @@ export default function App() {
           <div>
             <span className="block text-[9px] text-stone-500 uppercase tracking-widest font-mono mb-2">Core Dashboard</span>
             <button 
-              onClick={() => setActiveView('overview')}
+              onClick={() => { setOfficeChatDepartment(null); setActiveView('overview'); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition ${
                 activeView === 'overview' 
                   ? 'bg-[#a53600]/10 text-[#a53600] border border-[#a53600]/15 font-semibold shadow-[0_2px_10px_rgba(165,54,0,0.04)]' 
@@ -1372,7 +1376,11 @@ export default function App() {
                 return (
                   <button 
                     key={index}
-                    onClick={() => unlocked && setActiveView(dept.name)}
+                    onClick={() => {
+                      if (!unlocked) return;
+                      setOfficeChatDepartment(null);
+                      setActiveView(dept.name);
+                    }}
                     disabled={!unlocked}
                     className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition ${
                       isSelected 
@@ -1419,6 +1427,16 @@ export default function App() {
         {/* TOP BAR STATUS */}
         <header className="z-40 shrink-0 flex items-center justify-between px-6 py-4 border-b border-stone-200/80 bg-[#fff8f6]/80 backdrop-blur-xl">
           <div className="flex items-center gap-3">
+            {activeView !== 'overview' && (
+              <button
+                type="button"
+                onClick={() => { setOfficeChatDepartment(null); setActiveView('overview'); }}
+                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-[#2c211d] bg-[#ffd08f] border-2 border-[#fffaf0] hover:bg-white transition"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                HQ FLOOR
+              </button>
+            )}
             <h2 className="text-sm font-semibold tracking-tight font-outfit text-stone-800">
               {activeView === 'overview' ? 'Mission Control Hub' : `${activeView} Department Profile`}
             </h2>
@@ -1551,50 +1569,26 @@ export default function App() {
               {/* Center Panel: Org chart & Timeline */}
               <div className="xl:col-span-2 flex flex-col gap-6">
                 
-                {/* Org Chart Grid */}
-                <div className="glass-panel rounded-2xl p-5 shadow-sm bg-white/70">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Users className="w-5 h-5 text-stone-700" />
-                    <h3 className="font-semibold text-stone-800 font-outfit">AI Department Organization</h3>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {departmentsList.map((dept, idx) => {
-                      const status = getDeptStatus(dept.name);
-                      const unlocked = isDeptUnlocked(dept.name);
-                      
-                      return (
-                        <div 
-                          key={idx}
-                          onClick={() => unlocked && setActiveView(dept.name)}
-                          className={`cursor-pointer group flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ${
-                            !unlocked
-                              ? 'border-stone-200/40 bg-stone-200/10 opacity-30 cursor-not-allowed'
-                              : status === 'inprogress' 
-                              ? 'border-[#a53600]/40 bg-[#a53600]/5 shadow-[0_2px_15px_rgba(165,54,0,0.06)]' 
-                              : status === 'completed' 
-                              ? 'border-emerald-250 bg-emerald-50/20'
-                              : 'border-stone-200 bg-white hover:border-stone-300'
-                          }`}
-                        >
-                          <div className={`p-2 rounded-lg bg-gradient-to-br ${dept.color} text-[#fff8f6] mb-2`}>
-                            {unlocked ? <dept.icon className="w-4 h-4" /> : <Lock className="w-4 h-4 text-stone-400" />}
-                          </div>
-                          <span className="text-xs font-medium text-stone-700 group-hover:text-[#a53600] transition">{dept.name}</span>
-                          <span className={`text-[9px] uppercase mt-1 px-1.5 py-0.5 rounded font-mono ${getStatusBadgeClass(status)}`}>
-                            {unlocked ? status : 'locked'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* Gamified office floor driven by the real task graph. */}
+                <AgentOfficeFloor
+                  companyName={context?.companyName || 'Founder Company'}
+                  stage={context?.business.stage || 'IDEA'}
+                  departments={departmentsList.map((department) => ({
+                    name: department.name,
+                    status: getDeptStatus(department.name),
+                    unlocked: isDeptUnlocked(department.name),
+                  }))}
+                  tasks={tasks}
+                  messageCount={logs.length}
+                  lastSignal={logs.at(-1)?.action}
+                  onSelectDepartment={setOfficeChatDepartment}
+                />
 
                 {/* Task Graph */}
                 <div className="glass-panel rounded-2xl p-5 shadow-sm bg-white/70">
                   <div className="flex items-center gap-2 mb-3">
                     <Clock className="w-5 h-5 text-emerald-700" />
-                    <h3 className="font-semibold text-stone-800 font-outfit">Active Execution Graph</h3>
+                    <h3 className="font-semibold text-stone-800 font-outfit">Quest Log · Active Execution Graph</h3>
                   </div>
 
                   <div className="flex flex-col gap-3">
@@ -1778,7 +1772,7 @@ export default function App() {
               
               {/* LEFT COL — CODE VIEW: no chatbot, just the two MVP actions
                   that hand off to StartupForge's Codex service */}
-              {activeView === 'Code' ? (
+              {activeView === '__legacy-code-launcher' ? (
               <div className="lg:col-span-8 glass-panel rounded-2xl p-10 shadow-2xl flex flex-col items-center justify-center gap-8 min-h-[600px] lg:h-full bg-white/70 border-stone-200/70 text-center">
                 <div className="p-4 rounded-2xl bg-gradient-to-tr from-[#a53600] to-[#cc490e] text-white shadow-[0_4px_20px_rgba(165,54,0,0.2)]">
                   <Code className="w-8 h-8" />
@@ -1816,6 +1810,7 @@ export default function App() {
               </div>
               ) : (
               <div className="lg:col-span-8 glass-panel rounded-2xl p-5 shadow-2xl flex flex-col min-h-[600px] lg:h-full bg-white/70 border-stone-200/70">
+                <DepartmentRoom name={activeView} status={getDeptStatus(activeView)} />
                 <div className="flex items-center justify-between border-b border-stone-200/80 pb-4 mb-4 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-xl bg-gradient-to-tr from-[#a53600] to-[#cc490e] text-white shadow-[0_2px_10px_rgba(165,54,0,0.1)]">
@@ -2433,6 +2428,72 @@ export default function App() {
 
         </div>
       </div>
+
+      {officeChatDepartment && activeView === 'overview' && (
+        <div className="orbit-agent-chat-modal" role="presentation" onMouseDown={() => setOfficeChatDepartment(null)}>
+          <section
+            className="orbit-agent-chat-modal__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${officeChatDepartment} agent chat`}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="orbit-agent-chat-modal__header">
+              <div>
+                <span>LIVE CHANNEL</span>
+                <h3>{officeChatDepartment} Agent</h3>
+                <small>Shared company context connected</small>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOfficeChatDepartment(null);
+                    setActiveView(officeChatDepartment);
+                  }}
+                  className="orbit-agent-chat-modal__room-button"
+                >
+                  OPEN FULL ROOM
+                </button>
+                <button type="button" onClick={() => setOfficeChatDepartment(null)} className="orbit-agent-chat-modal__close" aria-label="Close chat">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </header>
+
+            <div className="orbit-agent-chat-modal__messages">
+              {(chatHistories[officeChatDepartment] || []).map((msg, idx) => (
+                <div key={idx} className={`orbit-agent-chat-modal__message orbit-agent-chat-modal__message--${msg.sender}`}>
+                  <span>{msg.timestamp}</span>
+                  <div>
+                    {msg.text.split('\n').map((line, lineIndex) => (
+                      <p key={lineIndex}>{renderInlineMarkdown(line, `popup-${officeChatDepartment}-${idx}-${lineIndex}`)}</p>
+                    ))}
+                  </div>
+                  {msg.sender === 'agent' && (
+                    <button type="button" onClick={() => copyAgentReply(msg.text, `popup-${officeChatDepartment}-${idx}`)}>
+                      {copiedMessageKey === `popup-${officeChatDepartment}-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      {copiedMessageKey === `popup-${officeChatDepartment}-${idx}` ? 'Copied' : 'Copy'}
+                    </button>
+                  )}
+                </div>
+              ))}
+              {isChatLoading && <div className="orbit-agent-chat-modal__thinking">Agent is checking the shared context…</div>}
+            </div>
+
+            <form onSubmit={(event) => handleChatSubmit(event, officeChatDepartment)} className="orbit-agent-chat-modal__composer">
+              <input
+                autoFocus
+                type="text"
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder={`Ask ${officeChatDepartment}…`}
+              />
+              <button type="submit" disabled={isChatLoading || !chatInput.trim()}><Send className="w-4 h-4" /></button>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
