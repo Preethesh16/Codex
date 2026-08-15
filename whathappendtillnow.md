@@ -3,6 +3,46 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 05:48:26 IST — Review collaborator branch against migration plan
+
+### Request summary
+
+Inspect the collaborator branch `orbit-hq-hackathon`, compare it with the
+verified OpenAI migration and approved plan, determine which remaining work it
+completes or changes, assess whether adopting it reduces or increases the
+project workload, and recommend the next actions. This is a review only: do not
+merge, check out, push, deploy, or publish anything.
+
+### Current batch status
+
+- Confirmed the current branch was clean at the start of the review.
+- Located and fetched `codex/orbit-hq-hackathon` for read-only inspection. It is
+  exactly one commit (`383c1d3`) ahead of the reviewed migration baseline
+  `390373f`, with no divergence or rewritten migration work.
+- The useful changes correct Orbit's default browser origin from port 5173 to
+  its actual port 3000, add clearer StartupForge reachability/opening feedback,
+  and make the Orbit development server watch compiled output explicitly.
+- The branch does not perform any remaining credential-dependent OpenAI, Sora,
+  Codex, OAuth, YouTube, GitHub publishing, or browser acceptance run. It also
+  does not add OCR or broader deployed-user authorization.
+- Review concerns: the StartupForge browser URL is hard-coded to localhost; a
+  runtime `feedback.csv` containing contact-like sample rows was committed even
+  though feedback ingestion is meant to remain local; peer-only lockfile churn
+  adds no dependency/version change; and the collaborator commit did not update
+  this required audit log.
+- Isolated Orbit build: passed. Orbit server tests: 15 passed. Diff whitespace
+  check: passed. Credential-pattern scan found only existing synthetic
+  tests/placeholders, not a real credential.
+- The validated temporary review worktree was removed after testing.
+- No merge, checkout of the collaborator branch, source modification, external
+  provider call, deployment, publication, or push was performed during review.
+- Files changed: `whathappendtillnow.md` only for this required audit entry.
+- Recommendation: do not merge the checkpoint unchanged. Retain the CORS fix,
+  launch-state UX, and nodemon configuration after making the client URL
+  configurable, removing/ignoring runtime feedback data, regenerating lockfiles
+  only when dependencies change, and adding the missing audit record.
+- Commit and push: pending audit-only review commit.
+
 ## 2026-08-14 19:55:21 IST — Request credential checklist and publish Codex main
 
 ### Request summary
