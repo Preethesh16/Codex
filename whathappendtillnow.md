@@ -3,6 +3,15 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 11:27 IST — Preserve Ashish's new folders
+
+- The owner instructed Codex not to pull, merge, inspect, or modify two folders
+  recently added by Ashish. Orbit work continues only on the current migration
+  branch and existing scoped project files.
+- No source behavior changed and no verification was required. This audit-only
+  record is committed and pushed to `codex/orbit-openai-migration`; `main` is
+  unchanged.
+
 ## 2026-08-15 11:22:01 IST — Add new-founder versus returning-founder landing choice
 
 ### Request summary and initial decisions
