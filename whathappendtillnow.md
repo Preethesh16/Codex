@@ -3,6 +3,36 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:13:38 IST — Triage exposed publishing configuration
+
+### Request summary
+
+Clarify the MultiVideo environment requirements before later adapting
+StartupForge's application-level GitHub publishing to use SSH.
+
+### Security decision and status
+
+- The prompt contained credential-like database, OAuth, and social-platform
+  values. None are reproduced here. The owner was instructed to treat them as
+  exposed, rotate/revoke the affected secrets, and avoid reusing or reposting
+  them.
+- The existing cookie secret is unsuitable and must be replaced with a strong
+  independent random value. MultiVideo's token-encryption key must be another
+  independent stable random value.
+- Only Google/YouTube is an enabled social adapter. Facebook, LinkedIn, and
+  Twitter credentials should remain blank; their connection routes intentionally
+  report unavailable.
+- Local ports, callback URLs, client URL, and upload-directory defaults may stay
+  unchanged after the Google Console redirects are registered.
+- The requested SSH-based in-app StartupForge publishing adaptation is accepted
+  as the next implementation task, but was not started because credential
+  rotation and configuration guidance was requested first.
+- No pasted credential was read from disk, tested, stored, logged, or used in an
+  external request. No provider call, source/configuration change, deployment,
+  publication, or branch merge occurred.
+- Files changed: `whathappendtillnow.md` only. Tests were not required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:12:27 IST — Select SSH for GitHub access
 
 ### Request summary and status
