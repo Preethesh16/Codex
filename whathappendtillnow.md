@@ -12,7 +12,8 @@ copied verbatim. Secrets and private document contents must never be recorded.
   copied into MultiVideo's ignored local environment file.
 - No connection URI, database credential, external setting, or implementation
   file was changed. Only this credential-safe journal entry was added.
-- Verification was not applicable. Commit and push: pending audit-only update.
+- Verification was not applicable. Commit `1736e01` was pushed over SSH to
+  `codex/orbit-openai-migration`; this status correction is journal-only.
 
 ## 2026-08-15 07:14:47 IST — Validate configuration and integrate SSH/UX hardening
 
