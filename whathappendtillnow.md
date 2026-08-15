@@ -3,6 +3,23 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:17:35 IST — Clarify MultiVideo-only billing requirements
+
+### Request summary and status
+
+- Clarified that the billing question concerns only the immediately preceding
+  MongoDB and Google/YouTube setup, not OpenAI media/model execution.
+- Verified that MongoDB Atlas documents a free cluster option. The YouTube Data
+  API uses project quotas and provides a default allocation; the planned single
+  private/unlisted demo upload is within the normal default setup and does not
+  require purchasing OpenAI API credits.
+- Paid OpenAI API usage is a separate later requirement for Orbit agent and
+  media generation, not for creating MultiVideo's database/OAuth configuration.
+- No account was created, credential handled, provider called, configuration or
+  source changed, or external action performed.
+- Files changed: `whathappendtillnow.md` only. No tests were required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:15:11 IST — Correct dummy-credential assumption
 
 ### Request summary and status
