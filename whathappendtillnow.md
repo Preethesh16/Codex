@@ -2198,3 +2198,50 @@ changing `main` or causing external publishing without approval.
 - Orbit server tests: 8 passed, including graph ordering and parallelism.
 - No live agent run was made because credentials remain absent.
 - Commit and push: pending further completion-audit work.
+
+### Prompt — production deployment for Orbit frontend and backend
+
+- The owner requested help deploying both the Orbit frontend and backend.
+- Deployment preparation will package the Vite frontend and Express API as one
+  service, with the persistent Orbit data directory mounted outside the
+  container. No hosting-provider account, deployment, or external publish has
+  been initiated yet.
+
+#### Planned verification and status
+
+- Inspect the existing runtime and add portable deployment configuration.
+- Build the production image and smoke-test the combined frontend/API service
+  locally before asking the owner to connect a hosting account.
+- Commit and push status: pending verified deployment-preparation changes on
+  `codex/orbit-openai-migration` only.
+
+#### Change batch — portable combined Orbit deployment
+
+- Packaged the built Vite frontend and Express backend into one Node 22 Docker
+  service. The production server now exposes an unauthenticated health check,
+  serves the built frontend, and falls back to the frontend for browser routes.
+- Kept all API and generated-media endpoints ahead of the frontend fallback.
+  Deployment configuration makes the data directory mountable at `/data`; this
+  is where the hashed CAZ credential, workspace context, agent runs, uploads,
+  generated posters, and media-job records can persist across restarts.
+- Fixed the generated image build so ignored TypeScript output cannot be skipped
+  due to stale incremental-build metadata from a checkout.
+
+#### Files changed
+
+- `Orbit-main/Dockerfile`
+- `Orbit-main/.dockerignore`
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/packages/server/.env.example`
+
+#### Verification and status
+
+- `npm run build` in `Orbit-main`: passed.
+- `docker build -t orbit-deploy-smoke:local .`: passed after clearing stale
+  TypeScript build metadata inside the image.
+- Combined-container smoke test: passed. `/healthz`, `/api/auth/session`, `/`,
+  and `/login` all returned successful responses on one local service.
+- Docker's dependency audit reported pre-existing package advisories; no
+  automatic dependency upgrade was applied.
+- No hosting-provider deployment, API/model request, media generation, or
+  external publish was made. Commit and push status: pending.

@@ -16,6 +16,9 @@ import { createOrbitAuthStore } from './orbitAuth.js';
 const __dirnameServer = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+app.get('/healthz', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 const browserOrigins = allowedOrigins();
 app.use(cors({
   credentials: true,
@@ -816,7 +819,10 @@ export function getSharedAgentContext(workspaceId: string): string {
 
   let docs = '';
   try {
-    const idxPath = join(__dirnameServer, '../uploads/index.json');
+    const uploadDir = process.env.ORBIT_UPLOAD_DIR
+      ? resolve(process.env.ORBIT_UPLOAD_DIR)
+      : join(__dirnameServer, '../uploads');
+    const idxPath = join(uploadDir, 'index.json');
     if (existsSync(idxPath)) {
       const idx = JSON.parse(readFileSync(idxPath, 'utf8')) as any[];
       docs = idx.map((d) => `- ${d.filename}: ${d.summary || d.preview || ''}`.slice(0, 600)).join('\n');
@@ -1192,6 +1198,15 @@ registerCreative(app, { getContext, getSharedContext: getSharedAgentContext, log
     VALUES (?, ?, ?, ?, ?)
   `).run('msg-' + Math.random().toString(36).substring(7), sender, 'founder', action, JSON.stringify({ title: detail }));
 }});
+
+// Production ships the Vite frontend with this Express API.  Explicit API and
+// generated-media routes above still take precedence; all browser routes fall
+// back to the single-page app.
+const clientDist = resolve(__dirnameServer, '../../client/dist');
+if (existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get('*', (_req, res) => res.sendFile(join(clientDist, 'index.html')));
+}
 
 app.listen(PORT, () => {
   console.log(`[Orbit Server] Running on http://localhost:${PORT}`);
