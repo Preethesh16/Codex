@@ -2750,3 +2750,9 @@ changing `main` or causing external publishing without approval.
   folders were pulled or added.
 - Commit and push status: publishing to the default branch and merging the same
   milestone into `main` immediately after this entry.
+- Delivery completed without force-pushing: approved UI milestone `c9c9aa9` is
+  published to `codex/orbit-openai-migration`, and merge commit `1e67402` is
+  published to `codex/main`. The local `main` branch was first fast-forwarded
+  to the already-known `codex/main` tip; no remote pull or unrelated work was
+  introduced. This final audit-only status update is synchronized to both
+  branches immediately after this line.
