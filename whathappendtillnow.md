@@ -2504,3 +2504,16 @@ changing `main` or causing external publishing without approval.
   documentation/media delivery at `bfbe88b`.
 - No redundant merge was created. Default-branch content verification passed;
   final audit-only push status: pending.
+
+### Prompt — summarize the technology stack
+
+- The owner requested an evaluator-friendly summary of the technologies used
+  across Orbit, StartupForge, MultiVideo, OpenAI models, privacy/security,
+  testing, and delivery.
+- The answer will be grounded in repository manifests and current README
+  documentation. No implementation file or external service will be changed.
+- Reviewed the package manifests for Orbit, StartupForge, and MultiVideo plus
+  repository documentation covering models, privacy, testing, sandboxing,
+  publishing, and Docker delivery.
+- No implementation file or external service was changed. Audit-only commit
+  and push status: pending.
