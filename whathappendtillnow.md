@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:58:35 IST — Advance from OAuth consent to client credentials
+
+### Request summary and status
+
+- The owner reported successful creation of the Google OAuth configuration and
+  correctly observed that no environment credential was produced.
+- Clarified that consent/branding configuration does not create credentials.
+  The next step is a Web application OAuth client with local JavaScript origins
+  and both application callback URLs; that flow generates the client ID and
+  client secret required by MultiVideo.
+- No Google client, credential, environment value, source file, or external
+  action was created by Codex; no private value was recorded.
+- Files changed: `whathappendtillnow.md` only. No tests were required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:57:14 IST — Select OAuth audience
 
 ### Request summary and status
