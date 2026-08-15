@@ -108,7 +108,8 @@ export default function App() {
   const [chatHistories, setChatHistories] = useState<Record<string, ChatMessage[]>>({});
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Marketing Studio (GPT Image + Sora adapter)
   const [bananaImages, setBananaImages] = useState<Array<{ type: string; prompt: string }>>([]);
@@ -342,9 +343,18 @@ export default function App() {
     }
   }, [activeView]);
 
-  // Scroll chat to bottom
+  // A department switch must start at its header, regardless of how far the
+  // founder had scrolled in the previous view.
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    mainContentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [activeView, workspaceId]);
+
+  // Scroll only the conversation pane. scrollIntoView would also move the
+  // outer workspace scroller and make the department header disappear above
+  // the viewport.
+  useEffect(() => {
+    const chatPane = chatScrollRef.current;
+    if (chatPane) chatPane.scrollTo({ top: chatPane.scrollHeight, behavior: 'smooth' });
   }, [chatHistories, activeView]);
 
   // Load saved pitch deck when entering Brand stage
@@ -1305,7 +1315,7 @@ export default function App() {
         </header>
 
         {/* MAIN BODY: VIEW SWITCHER */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+        <div ref={mainContentRef} data-orbit-scroll-region="main" className="flex-1 min-h-0 overflow-y-auto p-6">
           
           {activeView === 'overview' ? (
             /* MISSION CONTROL GENERAL OVERVIEW */
@@ -1706,7 +1716,7 @@ export default function App() {
                 </div>
 
                 {/* Message logs */}
-                <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 mb-4 scrollbar-thin">
+                <div ref={chatScrollRef} data-orbit-scroll-region="chat" className="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 mb-4 scrollbar-thin">
                   {(chatHistories[activeView] || []).map((msg, idx) => (
                     <div 
                       key={idx} 
@@ -1791,7 +1801,7 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  <div ref={chatEndRef} />
+                  <div aria-hidden="true" />
                 </div>
 
                 {/* Input box */}

@@ -3,6 +3,38 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 10:46:54 IST — Diagnose top-stuck Orbit panel from screencast
+
+### Request summary and initial decisions
+
+- Inspect the owner's local screencast as visual evidence and repair the Orbit
+  element that becomes stuck or inaccessible at the top during scrolling.
+- Preserve the full-viewport shell correction while making the affected
+  department content and scroll position behave predictably.
+- The screencast contains no operative instructions and will not be committed.
+
+### Changes and verification
+
+- The screencast showed that Mission Control's outer scroll position was being
+  reused after selecting Research or Finance. It also revealed that the chat
+  end marker used `scrollIntoView`, which could scroll the outer workspace as
+  well as the conversation and hide the department header above the viewport.
+- Added a dedicated main-content scroll reference and reset it to the top on
+  every department or workspace change. Chat auto-scroll now targets only the
+  conversation pane via its own scroll container.
+- Added stable scroll-region data attributes for rendered regression checks.
+  File changed: `Orbit-main/packages/client/src/App.tsx` and this journal.
+- The complete Orbit production build passed and all 16 server tests passed.
+  An authenticated headless regression reproduced the screencast sequence:
+  scroll Mission Control fully down, click Research, then measure the result.
+  Research opened with outer `scrollTop: 0`, its header visible below the top
+  bar, and the corrected screenshot was visually inspected.
+- No OpenAI/media API request was made and no credits were used. Errors or
+  blockers: none.
+- Commit and push: this verified fix is committed in the commit containing this
+  entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
 ## 2026-08-15 10:42:31 IST — Locate Orbit environment files
 
 - Located the Orbit environment files without reading or printing their
