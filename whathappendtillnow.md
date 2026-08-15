@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:12:42 IST — Confirm final OAuth scope set
+
+### Request summary and status
+
+- Reviewed the selected-scope and Data access summary screenshots.
+- Confirmed the exact least-privilege set is present: three basic identity
+  scopes plus YouTube read-only and upload, with no restricted or unrelated
+  scopes.
+- Directed the owner to click the remaining Save button. After saving, Google
+  Cloud configuration is sufficient for test-mode login and YouTube connection.
+- No Google setting was changed by Codex and no credential/private value was
+  handled.
+- Files changed: `whathappendtillnow.md` only. No source changed or tests ran.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 07:11:28 IST — Select Google and YouTube OAuth scopes
 
 ### Request summary and status
