@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:11:28 IST — Select Google and YouTube OAuth scopes
+
+### Request summary and status
+
+- Reviewed the Data access scope-selector screenshot.
+- Directed selection of only the three visible basic identity scopes and manual
+  addition of YouTube upload and read-only scopes. Explicitly excluded unrelated
+  BigQuery/Cloud scopes to preserve least privilege.
+- The YouTube permissions may be categorized as sensitive, but the app remains
+  limited to its explicit test user and is not being published or verified yet.
+- No scope or Google setting was changed by Codex and no credential/private
+  value was handled.
+- Files changed: `whathappendtillnow.md` only. No source changed or tests ran.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 07:09:28 IST — Confirm test user and configure OAuth scopes
 
 ### Request summary and status
