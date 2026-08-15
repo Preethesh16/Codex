@@ -14,21 +14,45 @@
 
 </div>
 
-## 64-second end-to-end demo
+## 29-second interactive command-house demo
 
-Click the preview to watch the complete browser workflow, recorded and scripted
-by OpenAI Codex with clean `gpt-4o-mini-tts` narration. The voice-only mono mix
-removes background audio and opens with an explicit spoken Codex credit: Orbit Mission
-Control and specialist agents, GPT Image campaign output, the generated
-Sora advertisement, Creative & Voice and Code workspaces, StartupForge's
-resumable Codex pipeline, verification results, and the generated-project
-library.
+Click the preview to watch the current Orbit interface operate in a real browser.
+The demonstration was captured, scripted, and narrated by Codex using Orbit's
+OpenAI `tts-1` voice pipeline. The clean mono track has no background mix,
+reverb, or duplicated channel. It shows the shared multi-agent floor, an
+in-place specialist chat, a dedicated Marketing room, and the Codex agent
+channel.
 
-<a href="docs/assets/orbit-full-workflow-demo.mp4"><img src="docs/assets/orbit-full-workflow-demo-preview.jpg" alt="Preview montage of the Orbit end-to-end workflow demo" width="100%" /></a>
+<a href="docs/assets/orbit-full-workflow-demo.mp4"><img src="docs/assets/orbit-full-workflow-demo-preview.jpg" alt="Preview of the fresh narrated Orbit Command House demo" width="100%" /></a>
 
-**[▶ Watch the full Orbit workflow demo](docs/assets/orbit-full-workflow-demo.mp4)**
+**[▶ Watch the fresh narrated Orbit demo](docs/assets/orbit-full-workflow-demo.mp4)**
 
-![Orbit Mission Control coordinating the CAZ workspace](docs/assets/orbit-mission-control.png)
+![Orbit Command House with every specialist sharing one live floor](docs/assets/orbit-command-house-fresh.png)
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### Click an agent — stay in Mission Control
+
+The selected specialist opens as a focused chat dialog over the live office.
+Conversation history remains connected to the shared company context.
+
+<img src="docs/assets/orbit-agent-chat-popup.png" alt="Research Agent popup chat over the shared Orbit Command House" width="100%" />
+
+</td>
+<td width="50%" valign="top">
+
+### Choose a department — enter its room
+
+Sidebar navigation opens the specialist's own room, full chatbot, domain
+workspace, and approval-gated actions.
+
+<img src="docs/assets/orbit-dedicated-agent-room.png" alt="Dedicated Research Agent room with chatbot and opportunity workspace" width="100%" />
+
+</td>
+</tr>
+</table>
 
 ## Why Orbit
 
