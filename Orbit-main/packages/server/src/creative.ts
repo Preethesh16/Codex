@@ -93,8 +93,8 @@ export function offlineStoryboard(companyName: string) {
   ] };
 }
 
-async function generateStoryboardStills(companyName: string, product: string, storyboard: z.infer<typeof StoryboardSchema>, getClient: () => CreativeClient): Promise<string[]> {
-  const selected = storyboard.shots.slice(0, 3);
+async function generateStoryboardStills(companyName: string, product: string, storyboard: z.infer<typeof StoryboardSchema>, getClient: () => CreativeClient, count = 3): Promise<string[]> {
+  const selected = storyboard.shots.slice(0, count);
   const results = await Promise.all(selected.map((shot, index) => getClient().images.generate({
     model: OPENAI_MODELS.image,
     prompt: redactForOpenAI(`Storyboard still ${index + 1} for an advertisement by ${companyName}. Product: ${product}. Scene: ${shot.scene}. On-screen text: ${shot.onScreenText}. Cinematic commercial frame, legible typography, no unsupported claims.`),
@@ -105,7 +105,7 @@ async function generateStoryboardStills(companyName: string, product: string, st
     : []);
 }
 
-async function processVideoJob(job: MediaJob, companyName: string, product: string, hooks: Hooks, dependencies: CreativeDependencies): Promise<void> {
+async function processVideoJob(job: MediaJob, companyName: string, product: string, seconds: '4' | '8' | '12', fallbackStillCount: number, hooks: Hooks, dependencies: CreativeDependencies): Promise<void> {
   updateMediaJob(job, { status: 'running' });
   let storyboard: z.infer<typeof StoryboardSchema> = offlineStoryboard(companyName);
   // An injected media client denotes deterministic/offline operation (tests and
@@ -117,7 +117,7 @@ async function processVideoJob(job: MediaJob, companyName: string, product: stri
   const getClient = dependencies.client || client;
   const sleep = dependencies.sleep || ((milliseconds: number) => new Promise<void>((resolvePromise) => setTimeout(resolvePromise, milliseconds)));
   try {
-    let video = await getClient().videos.create({ model: OPENAI_MODELS.video, prompt: redactForOpenAI(videoPrompt), seconds: '8', size: '1280x720' });
+    let video = await getClient().videos.create({ model: OPENAI_MODELS.video, prompt: redactForOpenAI(videoPrompt), seconds, size: '1280x720' });
     updateMediaJob(job, { providerJobId: video.id, output: { storyboard: storyboard.shots } });
     for (let attempt = 0; attempt < (dependencies.videoPollAttempts || 60) && (video.status === 'queued' || video.status === 'in_progress'); attempt += 1) {
       await sleep(5_000);
@@ -131,7 +131,7 @@ async function processVideoJob(job: MediaJob, companyName: string, product: stri
   } catch (error) {
     const normalized = normalizeOpenAIError(error, job.traceId);
     let stills: string[] = [];
-    try { stills = await generateStoryboardStills(companyName, product, storyboard, getClient); } catch { /* venue/offline mode */ }
+    try { stills = await generateStoryboardStills(companyName, product, storyboard, getClient, fallbackStillCount); } catch { /* venue/offline mode */ }
     updateMediaJob(job, {
       status: 'fallback', kind: 'storyboard', error: normalized, outputPaths: stills,
       output: { video: null, storyboard: storyboard.shots, stills, note: stills.length ? 'Sora unavailable — GPT Image storyboard stills provided' : 'Sora and GPT Image unavailable — offline storyboard provided' },
@@ -254,13 +254,17 @@ export function registerCreative(app: Express, hooks: Hooks, dependencies: Creat
   app.post('/api/marketing/adkit', async (req, res) => {
     const { product, workspaceId = 'default-workspace' } = req.body;
     if (!product) return res.status(400).json({ error: 'product required' });
+    const requestedSeconds = String(req.body.seconds || '8');
+    if (!['4', '8', '12'].includes(requestedSeconds)) return res.status(400).json({ error: 'seconds must be 4, 8, or 12' });
+    const seconds = requestedSeconds as '4' | '8' | '12';
+    const fallbackStillCount = Math.min(Math.max(Number(req.body.fallbackStills ?? 3) || 1, 1), 3);
     const ctx = hooks.getContext(workspaceId);
-    const videoPrompt = `Eight-second modern product advertisement for ${ctx.companyName}: ${product}. Cinematic, energetic, no unsupported claims.`;
+    const videoPrompt = `${seconds}-second modern product advertisement for ${ctx.companyName}: ${product}. Cinematic, energetic, no unsupported claims.`;
     const job = createMediaJob(workspaceId, 'video', OPENAI_MODELS.video, videoPrompt);
     const initial = offlineStoryboard(ctx.companyName);
     updateMediaJob(job, { output: { video: null, storyboard: initial.shots, stills: [], note: 'Sora job queued' } });
     res.status(202).json({ video: null, storyboard: initial.shots, stills: [], note: 'Sora job queued', jobId: job.id, status: job.status });
-    void processVideoJob(job, ctx.companyName, product, hooks, dependencies);
+    void processVideoJob(job, ctx.companyName, product, seconds, fallbackStillCount, hooks, dependencies);
   });
 
   app.post('/api/deck/generate', async (req, res) => {

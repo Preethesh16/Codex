@@ -203,7 +203,7 @@ app.post('/api/context', (req, res) => {
 // -----------------------------------------------------------------
 app.get('/api/tasks', (req, res) => {
   const workspaceId = (req.query.workspaceId as string) || 'default-workspace';
-  const rows = db.prepare("SELECT * FROM tasks WHERE workspace_id = ?").all() as any[];
+  const rows = db.prepare("SELECT * FROM tasks WHERE workspace_id = ?").all(workspaceId) as any[];
   
   const parsedRows = rows.map(r => ({
     ...r,
@@ -462,8 +462,7 @@ async function runAgentWorkflow(workspaceId: string, objective: string): Promise
   const started = new Date().toISOString();
   for (const taskId of Object.values(departmentTask)) updateTaskStatus.run('inprogress', started, null, taskId, workspaceId);
   try {
-    const results = await runOrbitWorkflow(objective, context);
-    for (const { department, output, traceId, usage, toolCalls } of results) {
+    await runOrbitWorkflow(objective, context, ({ department, output, traceId, usage, toolCalls }) => {
       applyValidatedContextPatch(context, output.contextPatch);
       const taskId = departmentTask[department];
       const completedAt = new Date().toISOString();
@@ -481,7 +480,7 @@ async function runAgentWorkflow(workspaceId: string, objective: string): Promise
         createdAt: started, completedAt,
       });
       saveContext(workspaceId, context);
-    }
+    });
     const buildRun = listAgentRuns(workspaceId).filter((run) => run.agent === 'code').at(-1);
     if (buildRun) {
       const buildOutput = buildRun.output as { summary?: string } | undefined;
@@ -500,7 +499,8 @@ async function runAgentWorkflow(workspaceId: string, objective: string): Promise
     saveContext(workspaceId, context);
   } catch (error) {
     const traceId = crypto.randomUUID();
-    for (const taskId of Object.values(departmentTask)) updateTaskStatus.run('failed', started, new Date().toISOString(), taskId, workspaceId);
+    db.prepare(`UPDATE tasks SET status = 'failed', completed_at = ? WHERE workspace_id = ? AND status = 'inprogress'`)
+      .run(new Date().toISOString(), workspaceId);
     const normalized = normalizeOpenAIError(error, traceId);
     saveAgentRun({
       id: crypto.randomUUID(), workspaceId, agent: 'operations', status: 'failed', traceId,

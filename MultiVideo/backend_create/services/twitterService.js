@@ -13,7 +13,7 @@ class TwitterService {
                 appSecret: process.env.TWITTER_CLIENT_SECRET,
             });
 
-            const redirectUri = process.env.TWITTER_REDIRECT_URI || 'http://localhost:5000/connect/twitter/callback';
+            const redirectUri = process.env.TWITTER_REDIRECT_URI || 'http://localhost:5001/connect/twitter/callback';
 
             const authLink = await client.generateAuthLink(redirectUri, { linkMode: 'authorize' });
 

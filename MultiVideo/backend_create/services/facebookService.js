@@ -3,14 +3,14 @@ const axios = require('axios');
 class FacebookService {
     getAuthUrl() {
         const appId = process.env.FACEBOOK_APP_ID;
-        const redirectUri = process.env.FACEBOOK_REDIRECT_URI || 'http://localhost:5000/connect/facebook/callback';
+        const redirectUri = process.env.FACEBOOK_REDIRECT_URI || 'http://localhost:5001/connect/facebook/callback';
         return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=pages_show_list,pages_read_engagement,pages_manage_posts`;
     }
 
     async getTokens(code) {
         const appId = process.env.FACEBOOK_APP_ID;
         const appSecret = process.env.FACEBOOK_APP_SECRET;
-        const redirectUri = process.env.FACEBOOK_REDIRECT_URI || 'http://localhost:5000/connect/facebook/callback';
+        const redirectUri = process.env.FACEBOOK_REDIRECT_URI || 'http://localhost:5001/connect/facebook/callback';
 
         const response = await axios.get('https://graph.facebook.com/v19.0/oauth/access_token', {
             params: {

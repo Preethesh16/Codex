@@ -234,23 +234,57 @@ export type WorkflowStageRunner = (department: OrbitDepartment, prior: string) =
 
 async function workflowRun(department: OrbitDepartment, objective: string, context: StartupContext, prior: string): Promise<WorkflowRun> {
   const traceId = crypto.randomUUID();
-  const result = await withRetry(() => run(workflowAgent(department), redactForOpenAI(`${contextPrompt(context, prior)}\n\nObjective: ${objective}`), { maxTurns: 10, signal: runTimeoutSignal() }));
-  return { output: validateWorkflowOutput(department, result.finalOutput), traceId, usage: usageOf(result), toolCalls: toolCallsOf(result) };
+  const agent = workflowAgent(department);
+  const prompt = redactForOpenAI(`${contextPrompt(context, prior)}\n\nObjective: ${objective}`);
+  const aggregate = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+  const toolCalls: ReturnType<typeof toolCallsOf> = [];
+  let repairReason = '';
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const attemptPrompt = attempt === 0 ? prompt : `${prompt}\n\nYour prior answer was rejected: ${repairReason}. Return the required JSON shape exactly once. Preserve factual uncertainty, include citations where required, and avoid absolute legal assurances.`;
+      const result = await withRetry(() => run(agent, attemptPrompt, { maxTurns: 10, signal: runTimeoutSignal() }));
+      const usage = usageOf(result);
+      aggregate.inputTokens += usage.inputTokens;
+      aggregate.outputTokens += usage.outputTokens;
+      aggregate.totalTokens += usage.totalTokens;
+      toolCalls.push(...toolCallsOf(result));
+      return { output: validateWorkflowOutput(department, result.finalOutput), traceId, usage: aggregate, toolCalls };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'structured output validation failed';
+      const repairable = /invalid output type|expected schema|requires at least one source citation|unsafe certainty claim|structured output/i.test(message);
+      if (attempt === 0 && repairable) {
+        repairReason = message.slice(0, 240);
+        continue;
+      }
+      throw new Error(`${department} stage failed: ${message}`, { cause: error });
+    }
+  }
+  throw new Error(`${department} stage failed after structured-output repair`);
 }
 
-export async function runOrbitWorkflow(objective: string, context: StartupContext): Promise<Array<{ department: OrbitDepartment } & WorkflowRun>> {
+export async function runOrbitWorkflow(
+  objective: string,
+  context: StartupContext,
+  onStageComplete?: (result: { department: OrbitDepartment } & WorkflowRun) => void | Promise<void>,
+): Promise<Array<{ department: OrbitDepartment } & WorkflowRun>> {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured');
-  const results = await orchestrateWorkflow((department, prior) => workflowRun(department, objective, context, prior));
+  const results = await orchestrateWorkflow(async (department, prior) => {
+    const result = await workflowRun(department, objective, context, prior);
+    await onStageComplete?.({ department, ...result });
+    return result;
+  });
   const traceId = crypto.randomUUID();
   const managerResult = await withRetry(() => run(
     orbitManagerAgent,
     redactForOpenAI(`${contextPrompt(context, JSON.stringify(results.map(({ department, output }) => ({ department, output }))))}\n\nPerform a final executive audit. Use the conflict specialist tool to verify that contradictions are resolved before returning the structured result.`),
     { maxTurns: 8, signal: runTimeoutSignal() },
   ));
-  results.push({
+  const managerRun = {
     department: 'operations', output: WorkflowOutputSchema.parse(managerResult.finalOutput),
     traceId, usage: usageOf(managerResult), toolCalls: toolCallsOf(managerResult),
-  });
+  } satisfies { department: OrbitDepartment } & WorkflowRun;
+  results.push(managerRun);
+  await onStageComplete?.(managerRun);
   return results;
 }
 

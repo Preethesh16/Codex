@@ -25,6 +25,7 @@ test('mock media API persists image, edit, voice, video, and quota fallback jobs
     status: 'running', outputPaths: [], traceId: 'trace-interrupted', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   }]));
   let videoMode = 'complete';
+  let requestedVideoSeconds = '';
   const fakeClient = {
     images: {
       generate: async () => ({ data: [{ b64_json: onePixel }] }),
@@ -32,7 +33,8 @@ test('mock media API persists image, edit, voice, video, and quota fallback jobs
     },
     audio: { speech: { create: async () => ({ arrayBuffer: async () => Buffer.from('mock-mp3') }) } },
     videos: {
-      create: async () => {
+      create: async ({ seconds }) => {
+        requestedVideoSeconds = seconds;
         if (videoMode === 'quota') throw Object.assign(new Error('quota exceeded'), { status: 429, code: 'rate_limit_exceeded' });
         return { id: 'video-job-1', status: 'queued' };
       },
@@ -82,20 +84,21 @@ test('mock media API persists image, edit, voice, video, and quota fallback jobs
   assert.equal(voice.response.status, 200);
   assert.equal(readFileSync(join(uploadRoot, voice.body.url.replace('/generated/', 'generated/')), 'utf8'), 'mock-mp3');
 
-  const video = await post('/api/marketing/adkit', { product: 'Founder workspace', workspaceId: 'media-test' });
+  const video = await post('/api/marketing/adkit', { product: 'Founder workspace', workspaceId: 'media-test', seconds: 4 });
   assert.equal(video.response.status, 202);
   const completed = await waitForJob(video.body.jobId);
   assert.equal(completed.status, 'completed');
   assert.equal(completed.providerJobId, 'video-job-1');
+  assert.equal(requestedVideoSeconds, '4');
   assert.ok(existsSync(join(uploadRoot, completed.outputPaths[0].replace('/generated/', 'generated/'))));
 
   videoMode = 'quota';
-  const fallbackResponse = await post('/api/marketing/adkit', { product: 'Offline demo', workspaceId: 'media-test' });
+  const fallbackResponse = await post('/api/marketing/adkit', { product: 'Offline demo', workspaceId: 'media-test', fallbackStills: 1 });
   const fallback = await waitForJob(fallbackResponse.body.jobId);
   assert.equal(fallback.status, 'fallback');
   assert.equal(fallback.kind, 'storyboard');
   assert.equal(fallback.error.code, 'rate_limit_exceeded');
   assert.equal(fallback.error.retryable, true);
-  assert.equal(fallback.output.stills.length, 3);
+  assert.equal(fallback.output.stills.length, 1);
   assert.equal(fallback.output.storyboard.reduce((sum, shot) => sum + shot.durationSec, 0), 8);
 });

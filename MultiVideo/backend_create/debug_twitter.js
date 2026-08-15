@@ -24,7 +24,7 @@ const client = new TwitterApi({
 (async () => {
     try {
         // Try to generate auth link (3-legged) - this effectively tests the keys against the 1.0a endpoint
-        const link = await client.generateAuthLink('http://localhost:5000/connect/twitter/callback', { linkMode: 'authorize' });
+        const link = await client.generateAuthLink('http://localhost:5001/connect/twitter/callback', { linkMode: 'authorize' });
         console.log('SUCCESS: Generated Auth Link:', link.url);
     } catch (e) {
         console.error('FAILURE: Error generating auth link:');

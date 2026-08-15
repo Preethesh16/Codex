@@ -3,6 +3,103 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:44:53 IST — Full localhost and minimal-credit OpenAI validation
+
+### Request summary and initial decisions
+
+- Validate the clean collaborator integration across Orbit, StartupForge, and
+  MultiVideo; run the complete local stack; exercise features end to end; and
+  perform real OpenAI agent, image, and video smoke tests while minimizing paid
+  usage. No deployment, GitHub-generated-project publish, YouTube upload, or
+  other public action is authorized.
+- Official OpenAI documentation was checked first. The Images API remains the
+  supported generation path. The Videos API currently marks its Sora endpoints
+  deprecated, so any live video test will use the minimum supported four-second
+  job and the existing fallback/adapter boundary will remain mandatory.
+- Planned paid coverage is one minimal request per necessary capability rather
+  than exhaustive repeated generation. Secrets will be checked only for
+  presence/format and will never be printed or recorded.
+- Work starts clean on `orbit-openai-migration` at `b36462b`. Files changed,
+  tests, runtime processes, paid-call outcomes, errors, commit, and push: pending.
+- During validation, the owner asked for a check of the Google OAuth client
+  configuration. The `localhost:5001` JavaScript origin is correct. MultiVideo
+  additionally requires its Google sign-in and YouTube callback URIs on port
+  5001; the older port-5000 entries may remain for compatibility. No OAuth
+  secret or client identifier is recorded here.
+
+### Changes and behavior
+
+- Fixed Orbit task lookup to bind the requested workspace ID. Completed agent
+  stages are now persisted as they finish, and a later stage failure only marks
+  tasks that are still in progress as failed.
+- Added one targeted structured-output/safety repair attempt per business-agent
+  stage. Repair usage and tool calls are aggregated and stage failures identify
+  the responsible department.
+- Added four-second Sora support and a bounded one-to-three-image storyboard
+  fallback control. The generated video prompt now matches the requested
+  duration; normal product behavior remains eight seconds and three fallback
+  stills.
+- Moved MultiVideo's local default from port 5000 to port 5001, including all
+  provider callback fallbacks and examples, because Orbit owns port 5000. The
+  ignored local MultiVideo environment file was updated consistently without
+  exposing or committing credentials.
+- Tracked files changed: `Orbit-main/packages/server/src/index.ts`,
+  `Orbit-main/packages/server/src/openaiRuntime.ts`,
+  `Orbit-main/packages/server/src/creative.ts`, its media fallback test, and
+  MultiVideo's server entry point, four provider services, Twitter diagnostic,
+  and environment example. This audit file was also updated.
+
+### Verification and live results
+
+- Configuration was checked without revealing values: both OpenAI keys, the
+  shared Orbit/StartupForge service token, approval token, MongoDB, Google
+  OAuth, cookie/encryption values, GitHub SSH owner, sandbox support, and all
+  six configured model names are present. Read-only availability checks passed
+  for the three GPT routes, GPT Image, Sora, and TTS.
+- Final repository verification passed: Orbit production build and 15 server
+  tests; StartupForge server build and 14 tests; StartupForge client production
+  build; MultiVideo's 7 tests. Total automated repository tests passed: 36.
+- The local stack is live: Orbit UI `3000`, Orbit API `5000`, StartupForge UI
+  `5173`, StartupForge API `3001`, and MultiVideo `5001`. Health/context/project
+  endpoints return 200; unauthenticated publishing routes remain protected.
+  Google login redirects to the Google provider using the port-5001 callback
+  when opened through `localhost`.
+- One minimal live GPT Image request completed and persisted a valid 1024x1024
+  PNG; one short TTS request completed and persisted a valid MP3; one minimum
+  four-second Sora request completed and persisted a 4.1-second MP4. No second
+  image, voice, or video generation was requested.
+- The complete live business graph ultimately passed with research first,
+  finance/legal/brand in parallel, conflict resolution, downstream specialists,
+  and operations audit. It persisted 9 runs, 36 citations, 3 tool calls, and
+  63,106 tokens (54,683 input and 8,423 output). All eight visible workflow
+  tasks are completed; the code run correctly required approval.
+- Under the owner's explicit local-test authorization, only the
+  `startupforge.build` approval was accepted. The resumable Codex build and
+  repair thread generated a local MVP and reported 6,803,717 input tokens
+  (6,681,431 cached) plus 67,569 output tokens across its build/repair work. Its
+  final checks passed: typecheck, lint, 20 tests, migration, and production
+  build. An independent localhost smoke on port 3100 passed login, task create
+  and read, unauthorized access, and cross-site mutation rejection.
+
+### Errors, limits, and safety
+
+- The first business-graph attempt was correctly rejected for unsafe legal
+  certainty. The next exposed a structured-output mismatch. The repair handling
+  was improved, and the final graph passed without weakening the safety guard.
+- Rebuilding the development StartupForge server while its job was active
+  caused the durable job row to be marked `Server restarted during build`.
+  The resumable Codex worker and generated files survived, completed repairs,
+  and passed all direct validation. This confirms the app output while also
+  documenting that crash/restart job reconciliation remains a later durable-
+  queue hardening item.
+- No deployment, generated-project GitHub publish, YouTube upload, social post,
+  filing, spending tool, or other public/external write was executed. Actual
+  Google/YouTube OAuth still requires the owner to save both port-5001 redirect
+  URIs and complete interactive browser consent.
+- Final diff whitespace and credential-pattern checks passed. The complete
+  build/test matrix was rerun after the last source edit with the same passing
+  results. Commit and push: pending creation of the verified milestone commit.
+
 ## 2026-08-15 07:42:24 IST — Validate MongoDB after IP allowlisting
 
 ### Request summary and initial status
