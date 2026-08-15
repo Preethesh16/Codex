@@ -3,6 +3,18 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:57:14 IST — Select OAuth audience
+
+### Request summary and status
+
+- Reviewed the Google Auth Platform audience-selection screen.
+- Recommended `External` with testing status because the project uses a personal
+  account/hackathon test audience rather than a managed Workspace organization.
+  Only explicitly added test-user accounts should be allowed during the demo.
+- No Google setting was changed by Codex and no email or credential was recorded.
+- Files changed: `whathappendtillnow.md` only. No source changed or tests ran.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:54:34 IST — Confirm YouTube API and begin OAuth consent
 
 ### Request summary and status
