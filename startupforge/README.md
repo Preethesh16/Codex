@@ -1,5 +1,7 @@
 # StartupForge
 
+![StartupForge onboarding](../docs/assets/startupforge-onboarding.png)
+
 StartupForge turns a privacy-filtered business profile into a working project
 using the OpenAI Codex SDK. Each generated project has one resumable Codex
 thread and follows Planner → implementation → Critic → repair.

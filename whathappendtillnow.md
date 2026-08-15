@@ -3,6 +3,203 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 11:30:37 IST — Verify Markdown presentation across all Orbit outputs
+
+### Request summary and initial decisions
+
+- Confirm that Markdown cleanup applies to every department, not only Research,
+  and inspect non-chat AI-output cards for any remaining raw formatting.
+- Reuse the shared renderer for every visible textual AI result while keeping
+  raw data intact for copy and downstream model calls.
+
+### Changes and verification
+
+- Confirmed the department conversations all render through the shared message
+  component, so Research, Finance, Marketing, Creative, Deck, Code, and
+  Conflict receive the same clean Markdown display.
+- Extended the same rendering to non-chat AI results: caption cards, voiceover
+  scripts, marketing video fallback notes/storyboard text, and generated deck
+  slide titles. Original stored values still go unchanged to copy, TTS, media,
+  and download workflows.
+- File changed: `Orbit-main/packages/client/src/App.tsx` and this journal.
+- Client production build passed, all 16 server tests passed, and whitespace
+  validation passed. No OpenAI/media API request was made and no credits were
+  used. Errors or blockers: none.
+- Commit and push: this verified change is committed in the commit containing
+  this entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
+## 2026-08-15 11:28:42 IST — Render agent Markdown while preserving raw AI text
+
+### Request summary and initial decisions
+
+- Remove raw Markdown markers such as `**` from all visible agent replies so
+  generated content reads naturally in Orbit.
+- Preserve each original agent response exactly for Copy and for downstream AI
+  actions such as poster/video generation, rather than sending a formatted or
+  stripped version.
+- Add lightweight safe rendering for common Markdown presentation features
+  without changing stored messages or requiring a new dependency.
+
+### Changes and verification
+
+- Added safe inline Markdown rendering for bold, emphasis, code, safe web/mail
+  links, headings, bulleted lists, and numbered lists in every department
+  conversation. Raw Markdown markers no longer display to the founder.
+- The original `msg.text` is unchanged: Copy, Finance refinement, and
+  Marketing poster/video actions continue to receive the exact raw AI response,
+  including its Markdown markers and full prompt context.
+- File changed: `Orbit-main/packages/client/src/App.tsx` and this journal.
+- Client production build passed and all 16 server tests passed. An
+  authenticated browser check opened Research and verified that the visible
+  welcome message contained no raw bold markers while a semantic bold element
+  rendered; the screenshot was visually inspected.
+- No OpenAI/media API request was made and no credits were used. Errors or
+  blockers: none.
+- Commit and push: this verified change is committed in the commit containing
+  this entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
+## 2026-08-15 11:27 IST — Preserve Ashish's new folders
+
+- The owner instructed Codex not to pull, merge, inspect, or modify two folders
+  recently added by Ashish. Orbit work continues only on the current migration
+  branch and existing scoped project files.
+- No source behavior changed and no verification was required. This audit-only
+  record is committed and pushed to `codex/orbit-openai-migration`; `main` is
+  unchanged.
+
+## 2026-08-15 11:22:01 IST — Add new-founder versus returning-founder landing choice
+
+### Request summary and initial decisions
+
+- The owner identified that the page still jumped directly to returning CAZ
+  login. Add the missing first landing page that explicitly lets a visitor
+  choose between creating a company and signing in.
+- The new-company option opens the combined company-information and password
+  setup flow on a fresh Orbit installation. The returning-founder option opens
+  login. A device already configured for CAZ must not silently overwrite that
+  credential; it will direct the visitor to sign in and add a workspace after
+  authentication.
+
+### Changes and verification
+
+- Added a real landing screen before all unauthenticated flows: `Create my
+  company` opens first-run company/idea/password setup, while `I already have
+  an account` opens company-password login. Both forms include a back-to-start
+  control.
+- A configured local install such as the current CAZ installation now lands on
+  this chooser instead of jumping straight to CAZ login. Choosing new-company
+  there preserves the existing credential and explains that the founder must
+  sign in before using the in-workspace `Add company` control.
+- Files changed: `Orbit-main/packages/client/src/App.tsx` and this journal.
+- The full production build and all 16 server tests passed. A headless browser
+  render against the live configured Orbit API confirmed the new heading,
+  both choice controls, full viewport fit, and the expected configured-device
+  note. The screenshot was visually inspected.
+- No OpenAI/media API request was made and no credits were used. Errors or
+  blockers: none.
+- Commit and push: this verified change is committed in the commit containing
+  this entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
+## 2026-08-15 11:12:26 IST — Unify first-run company setup and password
+
+### Request summary and initial decisions
+
+- Correct Orbit's startup routing so a returning founder sees login, while a
+  first-time founder sees one setup form containing company information and
+  password creation.
+- Remove the confusing separate password-only bootstrap followed by a second
+  company-information screen. Setup must create the local credential and seed
+  the first workspace coherently without exposing plaintext credentials.
+- Preserve existing configured installations and existing workspaces: they
+  continue to use login and are not reset or overwritten.
+
+### Changes and verification
+
+- First-run Orbit now presents one `Set up your company` form containing the
+  company name, startup vision/idea, password, and password confirmation.
+  Submitting it creates the hashed local login, names and initializes the
+  default workspace, seeds its eight-stage agent graph, signs the founder in,
+  and opens Research. There is no password-only bootstrap followed by duplicate
+  company onboarding.
+- Returning installations remain untouched: when a credential exists, startup
+  presents `Welcome back` with the saved company login and password field.
+  Existing workspace and credential data are never reset by this routing.
+- Extracted the common workspace-execution initializer so regular onboarding
+  and first-run setup use the same context and task graph behavior.
+- Prevented TypeScript from emitting client `.js` files beside `.tsx` sources;
+  those ignored artifacts could shadow the current React source in Vite and
+  resurrect stale startup UI. Existing generated source artifacts were removed
+  and a subsequent build confirmed they were not recreated.
+- Files changed: `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/client/tsconfig.json`,
+  `Orbit-main/packages/server/src/index.ts`, and this journal.
+- The complete production build passed and all 16 server tests passed. A fresh
+  isolated installation verified: blank setup state; invalid company vision
+  rejected without creating a credential; valid combined setup returned 201;
+  company name and vision persisted; eight tasks from Research through GTM
+  existed; logout succeeded; and the new company login succeeded afterward.
+- A fresh-session UI render showed exactly four setup fields (company name,
+  startup vision/idea, password, confirmation) and the company-workspace
+  button, all within the viewport. The real configured local server reports
+  setup complete and returns the existing CAZ login, so it correctly opens the
+  returning-login screen. Orbit was restarted on ports 3000 and 5000.
+- The isolated test intentionally had no OpenAI key; its asynchronous workflow
+  logged the expected missing-key message after local setup, and no credits were
+  consumed. One optional direct headless screenshot invocation did not exit and
+  was terminated; the successful intercepted UI render and API checks provide
+  the required coverage. No remaining blockers.
+- Commit and push: this verified change is committed in the commit containing
+  this entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
+## 2026-08-15 10:46:54 IST — Diagnose top-stuck Orbit panel from screencast
+
+### Request summary and initial decisions
+
+- Inspect the owner's local screencast as visual evidence and repair the Orbit
+  element that becomes stuck or inaccessible at the top during scrolling.
+- Preserve the full-viewport shell correction while making the affected
+  department content and scroll position behave predictably.
+- The screencast contains no operative instructions and will not be committed.
+
+### Changes and verification
+
+- The screencast showed that Mission Control's outer scroll position was being
+  reused after selecting Research or Finance. It also revealed that the chat
+  end marker used `scrollIntoView`, which could scroll the outer workspace as
+  well as the conversation and hide the department header above the viewport.
+- Added a dedicated main-content scroll reference and reset it to the top on
+  every department or workspace change. Chat auto-scroll now targets only the
+  conversation pane via its own scroll container.
+- Added stable scroll-region data attributes for rendered regression checks.
+  File changed: `Orbit-main/packages/client/src/App.tsx` and this journal.
+- The complete Orbit production build passed and all 16 server tests passed.
+  An authenticated headless regression reproduced the screencast sequence:
+  scroll Mission Control fully down, click Research, then measure the result.
+  Research opened with outer `scrollTop: 0`, its header visible below the top
+  bar, and the corrected screenshot was visually inspected.
+- No OpenAI/media API request was made and no credits were used. Errors or
+  blockers: none.
+- Commit and push: this verified fix is committed in the commit containing this
+  entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
+## 2026-08-15 10:42:31 IST — Locate Orbit environment files
+
+- Located the Orbit environment files without reading or printing their
+  contents. The active server secrets file is
+  `Orbit-main/packages/server/.env`; templates exist beside the server and
+  client packages as `.env.example` files.
+- Confirmed the active `.env` filename and server upload/runtime directory are
+  ignored by Git. No implementation behavior changed, no credentials were
+  exposed, and no tests were required.
+- Commit and push: this credential-safe journal update is committed and pushed
+  to `codex/orbit-openai-migration`; `codex/main` is unchanged because this
+  prompt did not request a new main-branch publication.
+
 ## 2026-08-15 10:24:09 IST — Repair Orbit desktop layout and publish main
 
 ### Request summary and initial decisions
@@ -2001,3 +2198,109 @@ changing `main` or causing external publishing without approval.
 - Orbit server tests: 8 passed, including graph ordering and parallelism.
 - No live agent run was made because credentials remain absent.
 - Commit and push: pending further completion-audit work.
+
+### Prompt — production deployment for Orbit frontend and backend
+
+- The owner requested help deploying both the Orbit frontend and backend.
+- Deployment preparation will package the Vite frontend and Express API as one
+  service, with the persistent Orbit data directory mounted outside the
+  container. No hosting-provider account, deployment, or external publish has
+  been initiated yet.
+
+#### Planned verification and status
+
+- Inspect the existing runtime and add portable deployment configuration.
+- Build the production image and smoke-test the combined frontend/API service
+  locally before asking the owner to connect a hosting account.
+- Commit and push status: pending verified deployment-preparation changes on
+  `codex/orbit-openai-migration` only.
+
+#### Change batch — portable combined Orbit deployment
+
+- Packaged the built Vite frontend and Express backend into one Node 22 Docker
+  service. The production server now exposes an unauthenticated health check,
+  serves the built frontend, and falls back to the frontend for browser routes.
+- Kept all API and generated-media endpoints ahead of the frontend fallback.
+  Deployment configuration makes the data directory mountable at `/data`; this
+  is where the hashed CAZ credential, workspace context, agent runs, uploads,
+  generated posters, and media-job records can persist across restarts.
+- Fixed the generated image build so ignored TypeScript output cannot be skipped
+  due to stale incremental-build metadata from a checkout.
+
+#### Files changed
+
+- `Orbit-main/Dockerfile`
+- `Orbit-main/.dockerignore`
+- `Orbit-main/packages/server/src/index.ts`
+- `Orbit-main/packages/server/.env.example`
+
+#### Verification and status
+
+- `npm run build` in `Orbit-main`: passed.
+- `docker build -t orbit-deploy-smoke:local .`: passed after clearing stale
+  TypeScript build metadata inside the image.
+- Combined-container smoke test: passed. `/healthz`, `/api/auth/session`, `/`,
+  and `/login` all returned successful responses on one local service.
+- Docker's dependency audit reported pre-existing package advisories; no
+  automatic dependency upgrade was applied.
+- No hosting-provider deployment, API/model request, media generation, or
+  external publish was made.
+- Implementation commit: `83fd30d` (`feat: package Orbit frontend and API for
+  deployment`), pushed to `codex/orbit-openai-migration`. The audit-status
+  update itself will be committed separately without rewriting that milestone.
+
+### Prompt — evaluator-ready project documentation and demo evidence
+
+- The owner requested a polished repository README for hackathon evaluation,
+  covering Orbit's OpenAI multi-agent workflow, Codex-powered StartupForge,
+  OpenAI image/video media generation, actual product screenshots, and the
+  supplied generated-video demo.
+- Documentation will describe only implemented capabilities and label fallbacks
+  or approval gates accurately. Reference-product screenshots will not be
+  presented as Orbit's product or copied into project branding.
+
+#### Planned verification and status
+
+- Gather only repository-owned UI evidence, extract lightweight stills from the
+  supplied demo video, create a documentation asset directory, and verify
+  Markdown links and the repository build.
+- Commit and push status: pending verified documentation changes on
+  `codex/orbit-openai-migration` only.
+
+#### Change batch — evaluator-facing README and owned demo media
+
+- Rebuilt the root README around Orbit's implemented product story: OpenAI
+  Manager and specialist tools, ordered/parallel orchestration, Codex build and
+  repair, local privacy controls, structured context, human approvals, image,
+  video, Creative & Voice Agent/TTS, pitch decks, and YouTube boundaries.
+- Added repository-owned screenshots captured from the running Orbit and
+  StartupForge clients. Added the owner-supplied eight-second Orbit Sora demo,
+  a lightweight preview frame, and an Orbit-generated CAZ GPT Image poster.
+- Added focused screenshots and media descriptions to the Orbit and
+  StartupForge package READMEs. No unrelated project image was included.
+- Checked current official OpenAI documentation before wording the model
+  descriptions; availability remains dependent on the operator's API account.
+
+#### Files changed
+
+- `README.md`
+- `Orbit-main/README.md`
+- `startupforge/README.md`
+- `docs/assets/orbit-mission-control.png`
+- `docs/assets/startupforge-onboarding.png`
+- `docs/assets/caz-gpt-image-poster.png`
+- `docs/assets/orbit-sora-ad-preview.jpg`
+- `docs/assets/orbit-sora-ad.mp4`
+
+#### Verification and status
+
+- Markdown whitespace validation with `git diff --check`: passed.
+- Required asset existence/non-empty checks: passed.
+- Supplied Sora demo validation with `ffprobe`: 8.07 seconds, valid MP4.
+- Credential-pattern scan of README text and assets: no committed credential
+  value found.
+- No OpenAI generation call, deployment, publication, or unrelated branch pull
+  occurred in this batch.
+- Documentation commit: `3abc356` (`docs: present Orbit multi-agent demo`),
+  pushed to `codex/orbit-openai-migration`. The status-only audit update will be
+  committed separately without rewriting that milestone.
