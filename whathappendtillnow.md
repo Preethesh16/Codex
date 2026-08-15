@@ -3,6 +3,18 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:41:28 IST — Confirm Atlas IP access-list screen
+
+### Request summary and status
+
+- Confirmed the owner reached Security Quickstart's My Local Environment IP
+  access-list screen. Directed use of Add My Current IP Address, Add Entry, and
+  Finish and Close so the current development network can reach the cluster.
+- The screenshot displayed a network address; it is deliberately omitted from
+  this journal. No Atlas setting was changed by Codex and no implementation file
+  changed. Verification will follow after the owner saves the entry.
+- Commit and push: recorded in the audit-only commit following this entry.
+
 ## 2026-08-15 07:39:36 IST — Locate the Atlas IP access list
 
 ### Request summary and status
