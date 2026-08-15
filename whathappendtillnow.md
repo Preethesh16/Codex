@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:09:28 IST — Confirm test user and configure OAuth scopes
+
+### Request summary and status
+
+- Reviewed the Google Auth Platform audience screenshot and confirmed the app is
+  external, remains in testing, and has one explicit test user.
+- The screenshot displayed a personal email address; it is deliberately omitted
+  from this log, and the owner was reminded to redact it in future screenshots.
+- Selected Data access as the next step, covering basic Google identity scopes
+  plus YouTube upload and read-only scopes used by MultiVideo.
+- No Google setting, credential, source/configuration value, or external request
+  was handled by Codex.
+- Files changed: `whathappendtillnow.md` only. No tests were required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 07:05:57 IST — Add Google OAuth test user
 
 ### Request summary and status
