@@ -3,6 +3,32 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 11:30:37 IST — Verify Markdown presentation across all Orbit outputs
+
+### Request summary and initial decisions
+
+- Confirm that Markdown cleanup applies to every department, not only Research,
+  and inspect non-chat AI-output cards for any remaining raw formatting.
+- Reuse the shared renderer for every visible textual AI result while keeping
+  raw data intact for copy and downstream model calls.
+
+### Changes and verification
+
+- Confirmed the department conversations all render through the shared message
+  component, so Research, Finance, Marketing, Creative, Deck, Code, and
+  Conflict receive the same clean Markdown display.
+- Extended the same rendering to non-chat AI results: caption cards, voiceover
+  scripts, marketing video fallback notes/storyboard text, and generated deck
+  slide titles. Original stored values still go unchanged to copy, TTS, media,
+  and download workflows.
+- File changed: `Orbit-main/packages/client/src/App.tsx` and this journal.
+- Client production build passed, all 16 server tests passed, and whitespace
+  validation passed. No OpenAI/media API request was made and no credits were
+  used. Errors or blockers: none.
+- Commit and push: this verified change is committed in the commit containing
+  this entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
 ## 2026-08-15 11:28:42 IST — Render agent Markdown while preserving raw AI text
 
 ### Request summary and initial decisions

@@ -2236,14 +2236,14 @@ export default function App() {
                         {adKit.video ? (
                           <video src={adKit.video} controls className="w-full rounded-xl border border-stone-200" />
                         ) : (
-                          <span className="text-[10px] text-stone-500 italic">{adKit.note}</span>
+                          <span className="text-[10px] text-stone-500 italic">{renderInlineMarkdown(String(adKit.note || ''), 'ad-note')}</span>
                         )}
                         {(adKit.storyboard || []).length > 0 && (
                           <div className="flex flex-col gap-1 max-h-36 overflow-y-auto">
                             <span className="text-[9px] text-stone-500 uppercase font-mono">Storyboard</span>
                             {adKit.storyboard.map((s: any, idx: number) => (
                               <div key={idx} className="p-2 rounded-lg border border-stone-200 bg-[#fff1ec] text-[10px] text-stone-600">
-                                <b className="text-[#a53600]">Shot {idx + 1}</b> ({s.durationSec}s): {s.scene} — <i>"{s.onScreenText}"</i>
+                                <b className="text-[#a53600]">Shot {idx + 1}</b> ({s.durationSec}s): {renderInlineMarkdown(String(s.scene || ''), `storyboard-scene-${idx}`)} — <i>"{renderInlineMarkdown(String(s.onScreenText || ''), `storyboard-text-${idx}`)}"</i>
                               </div>
                             ))}
                           </div>
@@ -2301,12 +2301,12 @@ export default function App() {
                     {captionResult && (
                       <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
                         {(captionResult.captions || []).map((c: string, idx: number) => (
-                          <div key={idx} className="p-2.5 rounded-lg border border-stone-200 bg-[#fff1ec] text-[11px] text-stone-700 whitespace-pre-wrap">{c}</div>
+                          <div key={idx} className="p-2.5 rounded-lg border border-stone-200 bg-[#fff1ec] text-[11px] text-stone-700 whitespace-pre-wrap">{renderInlineMarkdown(c, `caption-${idx}`)}</div>
                         ))}
                         {captionResult.voScript && (
                           <div className="border-t border-stone-200/80 pt-2 flex flex-col gap-2">
                             <span className="text-[9px] text-stone-500 uppercase font-mono">Voiceover script</span>
-                            <p className="text-[11px] text-stone-700 italic">"{captionResult.voScript}"</p>
+                            <p className="text-[11px] text-stone-700 italic">"{renderInlineMarkdown(captionResult.voScript, 'voiceover-script')}"</p>
                             <button
                               onClick={() => generateVoiceover(captionResult.voScript)}
                               disabled={isGeneratingVo}
@@ -2357,7 +2357,7 @@ export default function App() {
                         <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
                           {(deckResult.slides || []).map((s: any, idx: number) => (
                             <div key={idx} className="px-2.5 py-1.5 rounded-lg border border-stone-200 bg-[#fff1ec] text-[10px] text-stone-600">
-                              <b>{idx + 1}.</b> {s.title}
+                              <b>{idx + 1}.</b> {renderInlineMarkdown(String(s.title || ''), `deck-title-${idx}`)}
                             </div>
                           ))}
                         </div>
