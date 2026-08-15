@@ -2756,3 +2756,36 @@ changing `main` or causing external publishing without approval.
   to the already-known `codex/main` tip; no remote pull or unrelated work was
   introduced. This final audit-only status update is synchronized to both
   branches immediately after this line.
+
+### Prompt — refresh README screenshots and narrated workflow demo
+
+- The owner requested new screenshots of the approved one-room multi-agent UI
+  for the GitHub README and a fresh short screen recording with narration in
+  the same clean Codex demo style.
+- Capture only the current Orbit project, avoid credentials/private browser
+  content, replace stale README media references where appropriate, verify the
+  resulting image/video streams and audio, then publish the documentation
+  milestone to the repository branches.
+- Captured three fresh 1600×1000 localhost-only views with an isolated browser
+  session: the shared Command House, Research popup chat, and dedicated
+  Research room. No browser chrome, credentials, vault values, or unrelated
+  applications appear in the assets.
+- Re-recorded the real browser interaction sequence at 1600×1000: shared floor,
+  Marketing popup, dedicated Marketing room, return to HQ, and Code popup.
+  Generated one short OpenAI `tts-1` narration that explicitly credits Codex,
+  then replaced the old demo with a 29.3-second H.264/AAC mono MP4 and fresh
+  1280×800 preview.
+- Audio verification reports 48 kHz mono AAC, -17.3 dB mean and -1.5 dB peak,
+  with no detected one-second silence gaps. Full video decode completed without
+  errors; all three PNGs are 1600×1000 and visual inspection passed.
+- Updated the README demo copy and added the current shared-floor, popup-chat,
+  and dedicated-room gallery. Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`, its preview, the three new PNGs,
+  and this audit log.
+- One direct temporary cleanup command was rejected by the command safety
+  wrapper; an explicit file-by-file/depth-first cleanup succeeded. No product
+  files were affected and all temporary capture profiles, frames, scripts, and
+  narration intermediates were removed.
+- Commit and push status: publishing this verified documentation/media
+  milestone to the default branch and merging it into `main` immediately after
+  this entry.
