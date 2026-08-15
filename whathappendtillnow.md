@@ -3,6 +3,18 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 08:40:46 IST — Explain Creative and Conflict agents
+
+- Explained for a beginner that Creative converts business/marketing direction
+  into usable captions, ad wording, voiceover scripts, and generated audio.
+- Explained that Conflict compares incompatible specialist recommendations,
+  records the disagreement, and proposes a compromise before downstream work;
+  for example, balancing a Marketing campaign against Finance's budget limit and
+  Legal's advertising-claim restrictions.
+- No implementation behavior changed and no verification was required. This
+  entry is pushed in its audit-only commit to
+  `codex/orbit-openai-migration`.
+
 ## 2026-08-15 08:36:05 IST — Readable onboarding and agent reply actions
 
 ### Request summary and initial decisions
