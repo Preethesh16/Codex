@@ -3,6 +3,22 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:15:11 IST — Correct dummy-credential assumption
+
+### Request summary and status
+
+- The owner clarified that the previously shared database and OAuth-looking
+  values were dummy placeholders and were never configured or issued for use.
+- Corrected the prior precautionary guidance: no rotation is needed for values
+  that are entirely fictitious and have never protected an account.
+- The remaining real setup is limited to a MongoDB connection, Google OAuth plus
+  YouTube Data API access, and two locally generated MultiVideo secrets.
+  Unsupported Facebook, LinkedIn, and Twitter fields may remain blank.
+- No credential was generated, read from disk, logged, stored, tested, or used.
+- Files changed: `whathappendtillnow.md` only. No source/configuration changed
+  and no tests were required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:13:38 IST — Triage exposed publishing configuration
 
 ### Request summary
