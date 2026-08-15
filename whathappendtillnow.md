@@ -3,6 +3,17 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 08:23:18 IST — Give a beginner workspace example
+
+- Explained the workspace selector with a simple two-business example: each
+  workspace is a separate company folder containing only that company's tasks,
+  plans, finances, marketing material, and agent output.
+- Clarified that selecting a workspace changes what Orbit displays and does not
+  merge or delete information from the other workspace.
+- No implementation behavior changed and no verification was required. This
+  entry is pushed in its audit-only commit to
+  `codex/orbit-openai-migration`.
+
 ## 2026-08-15 08:22:26 IST — Explain Orbit workspace selector
 
 - Clarified that the workspace dropdown selects which company context Orbit is
