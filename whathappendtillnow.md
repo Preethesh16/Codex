@@ -3,6 +3,29 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:08:57 IST — Clarify StartupForge environment values
+
+### Request summary
+
+Explain which StartupForge environment fields require generated secrets or
+third-party credentials and which development defaults should remain unchanged.
+
+### Decision and status
+
+- Clarified that the credential-encryption key must be a new random local
+  secret and must remain stable after GitHub credentials are stored.
+- Confirmed the port, SQLite path, generated-project directory, sandbox policy,
+  client URL, feedback CSV path, and GitHub callback are valid local defaults.
+- Clarified that Vercel credentials are optional and should stay blank unless
+  Vercel deployment is explicitly enabled.
+- Clarified that GitHub client credentials are optional unless StartupForge's
+  browser-based GitHub connection flow is required; placeholders should be
+  replaced with blank values when that flow is disabled.
+- No environment value or secret was read, logged, generated, or changed.
+- Files changed: `whathappendtillnow.md` only. Tests were not required because
+  source and application configuration were unchanged.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:03:30 IST — Clarify local service and approval secrets
 
 ### Request summary
