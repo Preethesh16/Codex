@@ -2244,4 +2244,7 @@ changing `main` or causing external publishing without approval.
 - Docker's dependency audit reported pre-existing package advisories; no
   automatic dependency upgrade was applied.
 - No hosting-provider deployment, API/model request, media generation, or
-  external publish was made. Commit and push status: pending.
+  external publish was made.
+- Implementation commit: `83fd30d` (`feat: package Orbit frontend and API for
+  deployment`), pushed to `codex/orbit-openai-migration`. The audit-status
+  update itself will be committed separately without rewriting that milestone.
