@@ -3,11 +3,36 @@
 @tailwind utilities;
 
 @layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    background-color: #fff8f6;
+  }
+
   body {
     background-color: #fff8f6;
     color: #2e2c29;
     font-family: 'Outfit', 'Inter', sans-serif;
     overflow-x: hidden;
+  }
+}
+
+/* The authenticated workspace is an application shell, so bind it to the
+   visual viewport and let its own navigation/content regions scroll. */
+.orbit-app-shell {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+  .orbit-app-shell {
+    height: 100dvh;
   }
 }
 

@@ -3,6 +3,46 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 10:24:09 IST — Repair Orbit desktop layout and publish main
+
+### Request summary and initial decisions
+
+- Repair the Orbit desktop layout shown by the owner: the application shell
+  ends above the viewport bottom, exposes a large black region, and the
+  department workspace does not size its columns cleanly within the viewport.
+- Preserve independent scrolling for navigation, conversation, and insight
+  content while making the shell responsive to the actual viewport height.
+- Verify the production build and the corrected rendered layout, then commit
+  the coherent change to the migration branch and push that verified commit to
+  the explicitly authorized `codex/main` branch without force-pushing.
+
+### Changes and verification
+
+- Removed the stale black Tailwind theme classes from the HTML body and made
+  `html`, `body`, and `#root` consistently use Orbit's warm background.
+- Added a viewport-bound authenticated application shell using `100dvh` with a
+  `100vh` fallback. The sidebar, main flex column, and content viewport now use
+  explicit minimum-height/overflow constraints, preventing uncovered page
+  space while preserving internal scrolling.
+- Department grids and their conversation/build panels now stretch to the
+  available desktop content height instead of being limited to a fixed
+  600-pixel card.
+- Files changed: `Orbit-main/packages/client/index.html`,
+  `Orbit-main/packages/client/src/index.css`,
+  `Orbit-main/packages/client/src/App.tsx`, and this journal.
+- The complete Orbit production build passed and all 16 server tests passed.
+  A headless authenticated render at 2200×1263 measured the application shell
+  at exactly 2200×1263 with its bottom equal to the viewport bottom, a warm
+  body background, and `hasBlackGap: false`. The resulting screenshot was also
+  visually inspected and showed the full-height workspace.
+- No OpenAI or media API request was made, and no paid credits were used.
+  Diff whitespace checks passed. Errors or blockers: none.
+- `codex/main` was confirmed to be an ancestor of this branch, so publication
+  is a normal fast-forward and does not require a force push. Commit and push:
+  this verified change is committed in the commit containing this entry and is
+  pushed to both `codex/orbit-openai-migration` and the explicitly authorized
+  `codex/main`; the separate `origin/main` repository is unchanged.
+
 ## 2026-08-15 08:52:39 IST — CAZ password login and Orbit logout
 
 ### Request summary and initial decisions

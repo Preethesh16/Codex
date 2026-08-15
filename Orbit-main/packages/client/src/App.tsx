@@ -1129,14 +1129,14 @@ export default function App() {
 
   /* ----------------- RENDER MAIN APP LAYOUT ----------------- */
   return (
-    <div className="flex min-h-screen bg-[#fff8f6] text-stone-800 font-sans">
+    <div className="orbit-app-shell flex bg-[#fff8f6] text-stone-800 font-sans">
       
       {/* Soft Gold Orbs */}
       <div className="glow-orb w-[600px] h-[600px] bg-amber-100/30 top-[-200px] left-[-200px]" />
       <div className="glow-orb w-[500px] h-[500px] bg-orange-100/20 bottom-[-200px] right-[-200px]" />
 
       {/* LEFT SIDEBAR NAVIGATION */}
-      <aside className="w-64 border-r border-stone-200/80 bg-[#fff8f6]/60 backdrop-blur-xl shrink-0 flex flex-col z-20">
+      <aside className="w-64 h-full min-h-0 border-r border-stone-200/80 bg-[#fff8f6]/60 backdrop-blur-xl shrink-0 flex flex-col z-20">
         
         {/* Workspace Brand Box */}
         <div className="p-5 border-b border-stone-200/85 flex items-center gap-3">
@@ -1275,10 +1275,10 @@ export default function App() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 z-10">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 z-10">
         
         {/* TOP BAR STATUS */}
-        <header className="sticky top-0 z-40 flex items-center justify-between px-6 py-4 border-b border-stone-200/80 bg-[#fff8f6]/80 backdrop-blur-xl">
+        <header className="z-40 shrink-0 flex items-center justify-between px-6 py-4 border-b border-stone-200/80 bg-[#fff8f6]/80 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-semibold tracking-tight font-outfit text-stone-800">
               {activeView === 'overview' ? 'Mission Control Hub' : `${activeView} Department Profile`}
@@ -1305,7 +1305,7 @@ export default function App() {
         </header>
 
         {/* MAIN BODY: VIEW SWITCHER */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
           
           {activeView === 'overview' ? (
             /* MISSION CONTROL GENERAL OVERVIEW */
@@ -1635,12 +1635,12 @@ export default function App() {
           ) : (
             /* INDIVIDUAL DEPARTMENT VIEWS (CHATBOT + SPECIALIZED WIDGETS) */
             /* REDESIGNED CHATBOT: WIDER AND MORE SPACIOUS (65% width vs 35% width for widgets) */
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[550px]">
+            <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch gap-6 min-h-[600px] lg:min-h-full">
               
               {/* LEFT COL — CODE VIEW: no chatbot, just the two MVP actions
                   that hand off to StartupForge's Codex service */}
               {activeView === 'Code' ? (
-              <div className="lg:col-span-8 glass-panel rounded-2xl p-10 shadow-2xl flex flex-col items-center justify-center gap-8 h-[600px] bg-white/70 border-stone-200/70 text-center">
+              <div className="lg:col-span-8 glass-panel rounded-2xl p-10 shadow-2xl flex flex-col items-center justify-center gap-8 min-h-[600px] lg:h-full bg-white/70 border-stone-200/70 text-center">
                 <div className="p-4 rounded-2xl bg-gradient-to-tr from-[#a53600] to-[#cc490e] text-white shadow-[0_4px_20px_rgba(165,54,0,0.2)]">
                   <Code className="w-8 h-8" />
                 </div>
@@ -1676,7 +1676,7 @@ export default function App() {
                 )}
               </div>
               ) : (
-              <div className="lg:col-span-8 glass-panel rounded-2xl p-5 shadow-2xl flex flex-col h-[600px] bg-white/70 border-stone-200/70">
+              <div className="lg:col-span-8 glass-panel rounded-2xl p-5 shadow-2xl flex flex-col min-h-[600px] lg:h-full bg-white/70 border-stone-200/70">
                 <div className="flex items-center justify-between border-b border-stone-200/80 pb-4 mb-4 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-xl bg-gradient-to-tr from-[#a53600] to-[#cc490e] text-white shadow-[0_2px_10px_rgba(165,54,0,0.1)]">
