@@ -2248,3 +2248,56 @@ changing `main` or causing external publishing without approval.
 - Implementation commit: `83fd30d` (`feat: package Orbit frontend and API for
   deployment`), pushed to `codex/orbit-openai-migration`. The audit-status
   update itself will be committed separately without rewriting that milestone.
+
+### Prompt — evaluator-ready project documentation and demo evidence
+
+- The owner requested a polished repository README for hackathon evaluation,
+  covering Orbit's OpenAI multi-agent workflow, Codex-powered StartupForge,
+  OpenAI image/video media generation, actual product screenshots, and the
+  supplied generated-video demo.
+- Documentation will describe only implemented capabilities and label fallbacks
+  or approval gates accurately. Reference-product screenshots will not be
+  presented as Orbit's product or copied into project branding.
+
+#### Planned verification and status
+
+- Gather only repository-owned UI evidence, extract lightweight stills from the
+  supplied demo video, create a documentation asset directory, and verify
+  Markdown links and the repository build.
+- Commit and push status: pending verified documentation changes on
+  `codex/orbit-openai-migration` only.
+
+#### Change batch — evaluator-facing README and owned demo media
+
+- Rebuilt the root README around Orbit's implemented product story: OpenAI
+  Manager and specialist tools, ordered/parallel orchestration, Codex build and
+  repair, local privacy controls, structured context, human approvals, image,
+  video, Creative & Voice Agent/TTS, pitch decks, and YouTube boundaries.
+- Added repository-owned screenshots captured from the running Orbit and
+  StartupForge clients. Added the owner-supplied eight-second Orbit Sora demo,
+  a lightweight preview frame, and an Orbit-generated CAZ GPT Image poster.
+- Added focused screenshots and media descriptions to the Orbit and
+  StartupForge package READMEs. No unrelated project image was included.
+- Checked current official OpenAI documentation before wording the model
+  descriptions; availability remains dependent on the operator's API account.
+
+#### Files changed
+
+- `README.md`
+- `Orbit-main/README.md`
+- `startupforge/README.md`
+- `docs/assets/orbit-mission-control.png`
+- `docs/assets/startupforge-onboarding.png`
+- `docs/assets/caz-gpt-image-poster.png`
+- `docs/assets/orbit-sora-ad-preview.jpg`
+- `docs/assets/orbit-sora-ad.mp4`
+
+#### Verification and status
+
+- Markdown whitespace validation with `git diff --check`: passed.
+- Required asset existence/non-empty checks: passed.
+- Supplied Sora demo validation with `ffprobe`: 8.07 seconds, valid MP4.
+- Credential-pattern scan of README text and assets: no committed credential
+  value found.
+- No OpenAI generation call, deployment, publication, or unrelated branch pull
+  occurred in this batch. Commit and push status: pending.
