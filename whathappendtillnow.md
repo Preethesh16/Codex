@@ -3,6 +3,19 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 10:42:31 IST — Locate Orbit environment files
+
+- Located the Orbit environment files without reading or printing their
+  contents. The active server secrets file is
+  `Orbit-main/packages/server/.env`; templates exist beside the server and
+  client packages as `.env.example` files.
+- Confirmed the active `.env` filename and server upload/runtime directory are
+  ignored by Git. No implementation behavior changed, no credentials were
+  exposed, and no tests were required.
+- Commit and push: this credential-safe journal update is committed and pushed
+  to `codex/orbit-openai-migration`; `codex/main` is unchanged because this
+  prompt did not request a new main-branch publication.
+
 ## 2026-08-15 10:24:09 IST — Repair Orbit desktop layout and publish main
 
 ### Request summary and initial decisions
