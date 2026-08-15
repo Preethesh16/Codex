@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:24:42 IST — Clarify MongoDB URI placement
+
+### Request summary and status
+
+- Confirmed MultiVideo needs the Atlas database user's credentials only through
+  the complete `MONGO_URI` value in its ignored local environment file.
+- Separate MongoDB username/password environment variables are unnecessary for
+  the current application. The URI should select the `multivideo` database.
+- Clarified that the Atlas database user is distinct from the owner's Atlas web
+  account and that the completed URI must not be pasted into chat or committed.
+- No credential, connection string, account action, configuration/source change,
+  or test occurred.
+- Files changed: `whathappendtillnow.md` only.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:23:34 IST — Continue MongoDB security setup
 
 ### Request summary and status
