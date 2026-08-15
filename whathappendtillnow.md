@@ -3,6 +3,20 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:54:34 IST — Confirm YouTube API and begin OAuth consent
+
+### Request summary and status
+
+- Reviewed the owner's Google Cloud screenshot and confirmed YouTube Data API v3
+  is enabled for the intended project.
+- Selected OAuth consent-screen configuration as the next step before creating
+  the web OAuth client. Recommended an external/testing audience for a personal
+  Google account, an app name, support email, and developer contact email.
+- No Google setting or credential was created by Codex, and no private value was
+  recorded.
+- Files changed: `whathappendtillnow.md` only. No source changed or tests ran.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:49:47 IST — Begin Google/YouTube configuration
 
 ### Request summary and status
