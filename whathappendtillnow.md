@@ -2594,3 +2594,31 @@ changing `main` or causing external publishing without approval.
 - This verified correction is committed and pushed to
   `codex/orbit-openai-migration` immediately after this entry, then merged and
   pushed to `codex/main` without force-pushing.
+### Prompt — replace harsh demo voice mix
+
+- The owner supplied the downloaded published demo and reported that its voice
+  track contains an irritating sound.
+- Treat that file as the exact failure sample, diagnose the distortion, recover
+  the original pre-narration video from Git history, generate one clean OpenAI
+  narration if required, and remix with speech-safe levels and background
+  ducking. Validate the full output before publishing to the default branch and
+  `main`; never expose or commit credentials.
+- The supplied download matched the first quiet narrated version, confirming
+  that the objection concerned the underlying `onyx` voice/mix rather than the
+  later loudness-only repair. The clean pre-narration MP4 was recovered from
+  repository history instead of processing the faulty narration again.
+- Generated one replacement narration with `gpt-4o-mini-tts` and the natural
+  `marin` voice as a 24 kHz mono WAV. The 60.7-second delivery uses explicit
+  calm, even, non-theatrical speaking instructions. Credentials stayed in the
+  ignored Orbit server environment file and were not printed or committed.
+- Rebuilt the soundtrack without time-stretching or whole-track amplification.
+  Narration was normalized independently; the original Sora sound is retained
+  at 8% beneath speech only where it exists in the source video.
+- Final validation passed: 64.2 seconds, 1280×720 H.264 video, 48 kHz stereo
+  AAC audio, -18.4 dB mean and -1.4 dB maximum. Audio was measured across every
+  ten-second interval and the complete file decoded without error.
+- Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`, and this audit log. Temporary WAV,
+  recovered source, and mix files are removed after installation.
+- This verified repair is committed and pushed to the default branch, then
+  merged into `main` without force-pushing immediately after this entry.

@@ -17,7 +17,7 @@
 ## 64-second end-to-end demo
 
 Click the preview to watch the complete narrated browser workflow, featuring an
-clearly remastered OpenAI `tts-1` voiceover over the original Sora soundtrack:
+clean OpenAI `gpt-4o-mini-tts` voiceover over the original Sora soundtrack:
 Orbit Mission
 Control and specialist agents, GPT Image campaign output, the generated
 Sora advertisement, Creative & Voice and Code workspaces, StartupForge's
