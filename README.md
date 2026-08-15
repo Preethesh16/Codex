@@ -14,14 +14,15 @@
 
 </div>
 
-## 29-second interactive command-house demo
+## 48-second end-to-end command-house demo
 
 Click the preview to watch the current Orbit interface operate in a real browser.
-The demonstration was captured, scripted, and narrated by Codex using Orbit's
-OpenAI `tts-1` voice pipeline. The clean mono track has no background mix,
-reverb, or duplicated channel. It shows the shared multi-agent floor, an
-in-place specialist chat, a dedicated Marketing room, and the Codex agent
-channel.
+The demonstration was recorded, scripted, and spoken by Codex using Orbit's
+OpenAI `tts-1` voice pipeline. Its single clean mono track has no background
+mix, reverb, or duplicated channel. The extended cut moves from the shared
+multi-agent floor through in-place and dedicated specialist rooms, then shows
+the real CAZ campaign poster created with GPT Image and the real advertisement
+produced through Orbit's asynchronous Sora workflow.
 
 <a href="docs/assets/orbit-full-workflow-demo.mp4"><img src="docs/assets/orbit-full-workflow-demo-preview.jpg" alt="Preview of the fresh narrated Orbit Command House demo" width="100%" /></a>
 
