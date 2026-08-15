@@ -2565,8 +2565,10 @@ changing `main` or causing external publishing without approval.
   default-only commits after the common base. A normal merge preserved both
   histories; the only content conflict was the audit log, where `main` ended
   before the newer default-branch entries. Those entries were retained.
-- The merged application tree matches `codex/orbit-openai-migration` exactly;
-  only this audit entry adds content beyond the default branch.
 - Verification passed: root `git diff --check`, complete demo-video decode,
   Orbit core/server/client production builds, and all 16 Orbit server tests.
-- Merge commit and `codex/main` push status: pending.
+- Main merge milestone: `c6384a6` (`merge: synchronize default branch into
+  main`), pushed without force to `codex/main`. Its parents preserve both the
+  former main head and default-branch head `e666cc2`.
+- Remote ancestry verification passed. A final audit synchronization follows
+  so that `main` remains fully inclusive of the documented default branch.
