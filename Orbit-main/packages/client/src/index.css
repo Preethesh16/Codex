@@ -117,3 +117,525 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(165, 54, 0, 0.35);
 }
+
+/* Orbit HQ — an original game-world view of the real multi-agent graph. */
+.orbit-office {
+  --office-ink: #2c211d;
+  --office-paper: #fffaf0;
+  --office-line: #5f4638;
+  position: relative;
+  overflow: hidden;
+  color: var(--office-ink);
+  background: var(--office-paper);
+  border: 2px solid var(--office-ink);
+  box-shadow: 5px 5px 0 rgba(44, 33, 29, 0.18), inset 0 0 0 3px #f4d7c5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.orbit-office::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(95, 70, 56, 0.28);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.orbit-office__hud {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 20px 16px;
+  background: #2c211d;
+  color: #fffaf0;
+  border-bottom: 4px solid #cc490e;
+}
+
+.orbit-office__hud h3 {
+  margin: 3px 0 4px;
+  font: 800 18px/1.2 'Outfit', sans-serif;
+}
+
+.orbit-office__hud p {
+  max-width: 440px;
+  margin: 0;
+  color: #e9d9cc;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.orbit-office__eyebrow {
+  color: #ffb184;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.orbit-office__level {
+  width: 150px;
+  align-self: center;
+  flex: none;
+}
+
+.orbit-office__level-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  font-size: 9px;
+}
+
+.orbit-office__level-row strong {
+  color: #ffd08f;
+  font-size: 12px;
+}
+
+.orbit-office__xp,
+.orbit-office__mission-meter {
+  height: 8px;
+  overflow: hidden;
+  background: #110d0b;
+  border: 1px solid #f4d7c5;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+
+.orbit-office__xp span,
+.orbit-office__mission-meter span {
+  display: block;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #f4a340 0 8px, #ffbf68 8px 12px);
+  transition: width 450ms steps(8, end);
+}
+
+.orbit-office__world {
+  position: relative;
+  z-index: 1;
+  padding: 18px;
+  background-color: #e9cba6;
+  background-image:
+    linear-gradient(rgba(95, 70, 56, .12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(95, 70, 56, .12) 1px, transparent 1px),
+    linear-gradient(45deg, rgba(255,255,255,.12) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.12) 75%);
+  background-size: 24px 24px, 24px 24px, 48px 48px;
+}
+
+.orbit-office__manager {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(430px, calc(100% - 16px));
+  margin: 0 auto;
+  padding: 10px 12px;
+  text-align: left;
+  background: #fffaf0;
+  border: 2px solid var(--office-ink);
+  box-shadow: 3px 3px 0 rgba(44, 33, 29, 0.22), inset 0 0 0 2px #f4d7c5;
+}
+
+.orbit-office__manager-orb {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  color: white;
+  background: #a53600;
+  border: 2px solid var(--office-ink);
+  font: 800 23px/1 serif;
+}
+
+.orbit-office__manager div:not(.orbit-office__level-row) {
+  min-width: 0;
+  flex: 1;
+}
+
+.orbit-office__manager strong,
+.orbit-office__manager small {
+  display: block;
+}
+
+.orbit-office__manager strong { font-size: 11px; }
+.orbit-office__manager small { margin-top: 2px; color: #765c4c; font-size: 9px; }
+
+.orbit-office__manager-signal {
+  padding: 4px 6px;
+  color: #765c4c;
+  background: #f2e5d7;
+  border: 1px solid #b89b85;
+  font-size: 8px;
+}
+
+.orbit-office__manager-signal.is-live {
+  color: #613400;
+  background: #ffe2a8;
+  animation: orbit-signal-blink 900ms steps(2, end) infinite;
+}
+
+.orbit-office__signal-line {
+  position: relative;
+  width: 72%;
+  height: 28px;
+  margin: 0 auto -2px;
+  border-bottom: 2px dashed rgba(95, 70, 56, .55);
+}
+
+.orbit-office__signal-line::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  border-left: 2px dashed rgba(95, 70, 56, .55);
+}
+
+.orbit-office__signal-line i {
+  position: absolute;
+  bottom: -4px;
+  left: 15%;
+  width: 7px;
+  height: 7px;
+  background: #cc490e;
+  border: 1px solid var(--office-ink);
+  animation: orbit-packet 2.4s steps(8, end) infinite;
+}
+
+.orbit-office__signal-line i:nth-child(2) { left: 49%; animation-delay: 700ms; }
+.orbit-office__signal-line i:nth-child(3) { left: 82%; animation-delay: 1.4s; }
+
+.orbit-office__grid {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.orbit-office-agent {
+  --agent-accent: #a53600;
+  position: relative;
+  min-height: 170px;
+  padding: 25px 8px 10px;
+  overflow: visible;
+  color: var(--office-ink);
+  text-align: center;
+  background: #fffaf0;
+  border: 2px solid var(--office-ink);
+  box-shadow: 3px 3px 0 rgba(44, 33, 29, .2), inset 0 0 0 2px color-mix(in srgb, var(--agent-accent) 20%, white);
+  cursor: pointer;
+  animation: orbit-room-arrive 400ms steps(5, end) both;
+  animation-delay: var(--agent-delay);
+  transition: transform 80ms steps(2, end), box-shadow 80ms steps(2, end);
+}
+
+.orbit-office-agent:hover:not(:disabled),
+.orbit-office-agent:focus-visible:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 rgba(44, 33, 29, .27), inset 0 0 0 3px color-mix(in srgb, var(--agent-accent) 36%, white);
+}
+
+.orbit-office-agent:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 rgba(44, 33, 29, .24), inset 0 0 0 2px color-mix(in srgb, var(--agent-accent) 30%, white);
+}
+
+.orbit-office-agent:disabled { cursor: not-allowed; }
+.orbit-office-agent--locked { opacity: .48; filter: grayscale(.75); }
+.orbit-office-agent--failed { background: #fff0ed; }
+.orbit-office-agent--completed { background: #f3fbf3; }
+.orbit-office-agent--inprogress { background: #fff7df; }
+
+.orbit-office-agent__room {
+  position: absolute;
+  inset: 0 0 auto;
+  padding: 5px 4px;
+  overflow: hidden;
+  color: white;
+  background: var(--agent-accent);
+  border-bottom: 2px solid var(--office-ink);
+  font-size: 8px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.orbit-office-agent__bubble {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  top: 31px;
+  width: calc(100% - 12px);
+  padding: 5px;
+  transform: translateX(-50%);
+  color: #55331e;
+  background: white;
+  border: 1px solid var(--office-ink);
+  box-shadow: 2px 2px 0 rgba(44, 33, 29, .18);
+  font-size: 7px;
+  line-height: 1.25;
+}
+
+.orbit-office-agent__bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: white;
+  border-right: 1px solid var(--office-ink);
+  border-bottom: 1px solid var(--office-ink);
+}
+
+.orbit-office-agent__desk {
+  position: relative;
+  display: block;
+  width: 58px;
+  height: 26px;
+  margin: -7px auto 7px;
+  background: #9c6a42;
+  border: 2px solid var(--office-ink);
+  box-shadow: inset 0 -7px 0 #71462e;
+}
+
+.orbit-office-agent__desk i {
+  position: absolute;
+  top: -13px;
+  left: 20px;
+  width: 20px;
+  height: 14px;
+  background: #28323a;
+  border: 2px solid var(--office-ink);
+}
+
+.orbit-office-agent__desk i:nth-child(2) {
+  top: 24px;
+  left: 4px;
+  width: 6px;
+  height: 10px;
+  background: #71462e;
+}
+
+.orbit-office-agent__desk i:nth-child(3) {
+  top: 24px;
+  left: 45px;
+  width: 6px;
+  height: 10px;
+  background: #71462e;
+}
+
+.orbit-office-agent > strong,
+.orbit-office-agent > small { display: block; }
+.orbit-office-agent > strong { font: 800 11px/1.2 'Outfit', sans-serif; }
+.orbit-office-agent > small {
+  min-height: 24px;
+  margin: 3px auto 5px;
+  color: #765c4c;
+  font-size: 7px;
+  line-height: 1.35;
+}
+
+.orbit-office-agent__status {
+  display: inline-block;
+  padding: 3px 5px;
+  color: #4b372d;
+  background: color-mix(in srgb, var(--agent-accent) 18%, white);
+  border: 1px solid color-mix(in srgb, var(--agent-accent) 65%, #2c211d);
+  font-size: 7px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.orbit-office-agent__lock {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 48px;
+  margin: 22px auto 5px;
+  color: #705f55;
+  background: #ddd2c7;
+  border: 2px solid #705f55;
+  font-size: 22px;
+}
+
+.orbit-pixel-agent {
+  position: relative;
+  z-index: 4;
+  width: 42px;
+  height: 58px;
+  margin: 18px auto 0;
+}
+
+.orbit-pixel-agent__shadow {
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  width: 34px;
+  height: 7px;
+  background: rgba(44, 33, 29, .23);
+}
+
+.orbit-pixel-agent__legs {
+  position: absolute;
+  left: 11px;
+  bottom: 5px;
+  width: 20px;
+  height: 13px;
+  border-left: 7px solid #493a34;
+  border-right: 7px solid #493a34;
+}
+
+.orbit-pixel-agent__body {
+  position: absolute;
+  left: 7px;
+  bottom: 15px;
+  width: 28px;
+  height: 22px;
+  background: var(--agent-accent);
+  border: 2px solid var(--office-ink);
+}
+
+.orbit-pixel-agent__face {
+  position: absolute;
+  left: 10px;
+  bottom: 34px;
+  width: 23px;
+  height: 19px;
+  background: #d99a70;
+  border: 2px solid var(--office-ink);
+}
+
+.orbit-pixel-agent__face i {
+  position: absolute;
+  top: 7px;
+  width: 3px;
+  height: 3px;
+  background: var(--office-ink);
+}
+
+.orbit-pixel-agent__face i:first-child { left: 4px; }
+.orbit-pixel-agent__face i:last-child { right: 4px; }
+
+.orbit-pixel-agent__hair {
+  position: absolute;
+  left: 8px;
+  bottom: 48px;
+  width: 27px;
+  height: 8px;
+  background: #3e2b25;
+  border: 2px solid var(--office-ink);
+}
+
+.orbit-pixel-agent__spark {
+  position: absolute;
+  right: -3px;
+  top: 0;
+  color: #d19018;
+  font-size: 15px;
+  animation: orbit-spark 1s steps(3, end) infinite;
+}
+
+.orbit-pixel-agent--inprogress {
+  margin-top: 34px;
+  animation: orbit-agent-work 550ms steps(2, end) infinite;
+}
+
+.orbit-office__questbar {
+  position: relative;
+  z-index: 6;
+  padding: 12px 16px 14px;
+  color: #fdf7ed;
+  background: #2c211d;
+  border-top: 4px solid #cc490e;
+}
+
+.orbit-office__quest-progress {
+  display: grid;
+  grid-template-columns: auto minmax(125px, 1fr) minmax(90px, 1.4fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.orbit-office__quest-progress strong,
+.orbit-office__quest-progress small { display: block; }
+.orbit-office__quest-progress strong { color: #ffd08f; font-size: 9px; text-transform: uppercase; }
+.orbit-office__quest-progress small { margin-top: 2px; color: #cfbcae; font-size: 8px; }
+.orbit-office__quest-progress b { color: #fffaf0; font-size: 10px; }
+.orbit-office__quest-icon { color: #ffb184; font-size: 22px; }
+.orbit-office__mission-meter { border-color: #7d6558; }
+
+.orbit-office__ticker {
+  margin-top: 10px;
+  padding-top: 9px;
+  overflow: hidden;
+  color: #cfbcae;
+  border-top: 1px solid #624d42;
+  font-size: 8px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orbit-office__ticker > span {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  background: #8a766b;
+}
+
+.orbit-office__ticker > span.is-live {
+  background: #70bc7c;
+  box-shadow: 0 0 0 2px rgba(112,188,124,.18);
+  animation: orbit-signal-blink 900ms steps(2, end) infinite;
+}
+
+@keyframes orbit-room-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes orbit-agent-work {
+  0%, 49% { transform: translateY(0); }
+  50%, 100% { transform: translateY(-3px); }
+}
+
+@keyframes orbit-packet {
+  0% { transform: translateX(-12px); opacity: 0; }
+  15%, 85% { opacity: 1; }
+  100% { transform: translateX(20px); opacity: 0; }
+}
+
+@keyframes orbit-signal-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: .55; }
+}
+
+@keyframes orbit-spark {
+  0%, 49% { transform: translateY(0); opacity: 1; }
+  50%, 100% { transform: translateY(-3px); opacity: .45; }
+}
+
+@media (max-width: 760px) {
+  .orbit-office__hud { align-items: flex-start; padding: 15px; }
+  .orbit-office__hud p { display: none; }
+  .orbit-office__level { width: 112px; }
+  .orbit-office__world { padding: 12px; }
+  .orbit-office__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .orbit-office__signal-line { width: 55%; }
+  .orbit-office__quest-progress { grid-template-columns: auto 1fr auto; }
+  .orbit-office__mission-meter { grid-column: 1 / -1; grid-row: 2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-office *,
+  .orbit-office *::before,
+  .orbit-office *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -6,7 +6,6 @@ import {
   Terminal, 
   AlertTriangle, 
   Clock, 
-  Users, 
   Activity, 
   DollarSign, 
   FileText, 
@@ -47,6 +46,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { StartupContext, AgentMessage, ExecutionTask, Conflict } from 'orbit-core';
+import AgentOfficeFloor from './AgentOfficeFloor';
 
 interface ChatMessage {
   sender: 'user' | 'agent';
@@ -1551,50 +1551,26 @@ export default function App() {
               {/* Center Panel: Org chart & Timeline */}
               <div className="xl:col-span-2 flex flex-col gap-6">
                 
-                {/* Org Chart Grid */}
-                <div className="glass-panel rounded-2xl p-5 shadow-sm bg-white/70">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Users className="w-5 h-5 text-stone-700" />
-                    <h3 className="font-semibold text-stone-800 font-outfit">AI Department Organization</h3>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {departmentsList.map((dept, idx) => {
-                      const status = getDeptStatus(dept.name);
-                      const unlocked = isDeptUnlocked(dept.name);
-                      
-                      return (
-                        <div 
-                          key={idx}
-                          onClick={() => unlocked && setActiveView(dept.name)}
-                          className={`cursor-pointer group flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ${
-                            !unlocked
-                              ? 'border-stone-200/40 bg-stone-200/10 opacity-30 cursor-not-allowed'
-                              : status === 'inprogress' 
-                              ? 'border-[#a53600]/40 bg-[#a53600]/5 shadow-[0_2px_15px_rgba(165,54,0,0.06)]' 
-                              : status === 'completed' 
-                              ? 'border-emerald-250 bg-emerald-50/20'
-                              : 'border-stone-200 bg-white hover:border-stone-300'
-                          }`}
-                        >
-                          <div className={`p-2 rounded-lg bg-gradient-to-br ${dept.color} text-[#fff8f6] mb-2`}>
-                            {unlocked ? <dept.icon className="w-4 h-4" /> : <Lock className="w-4 h-4 text-stone-400" />}
-                          </div>
-                          <span className="text-xs font-medium text-stone-700 group-hover:text-[#a53600] transition">{dept.name}</span>
-                          <span className={`text-[9px] uppercase mt-1 px-1.5 py-0.5 rounded font-mono ${getStatusBadgeClass(status)}`}>
-                            {unlocked ? status : 'locked'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* Gamified office floor driven by the real task graph. */}
+                <AgentOfficeFloor
+                  companyName={context?.companyName || 'Founder Company'}
+                  stage={context?.business.stage || 'IDEA'}
+                  departments={departmentsList.map((department) => ({
+                    name: department.name,
+                    status: getDeptStatus(department.name),
+                    unlocked: isDeptUnlocked(department.name),
+                  }))}
+                  tasks={tasks}
+                  messageCount={logs.length}
+                  lastSignal={logs.at(-1)?.action}
+                  onSelectDepartment={setActiveView}
+                />
 
                 {/* Task Graph */}
                 <div className="glass-panel rounded-2xl p-5 shadow-sm bg-white/70">
                   <div className="flex items-center gap-2 mb-3">
                     <Clock className="w-5 h-5 text-emerald-700" />
-                    <h3 className="font-semibold text-stone-800 font-outfit">Active Execution Graph</h3>
+                    <h3 className="font-semibold text-stone-800 font-outfit">Quest Log · Active Execution Graph</h3>
                   </div>
 
                   <div className="flex flex-col gap-3">
