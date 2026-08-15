@@ -3,6 +3,23 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 08:29:28 IST — Diagnose onboarding/workspace name mismatch
+
+- Investigated why Orbit's workspace selector still displayed demo company
+  names after onboarding with a real startup name.
+- Read-only runtime verification confirms the entered company name was saved
+  correctly in the default workspace context. The defect is visual: the client
+  dropdown contains two hardcoded demo labels instead of loading workspace
+  records and rendering the saved context names/stages.
+- No implementation change was made because this prompt requested diagnosis,
+  not authorization to change behavior. The appropriate fix is to load
+  `/api/workspace`, combine each record with its context summary, and render the
+  selector dynamically, with the onboarded default workspace shown by its saved
+  company name.
+- Verification: both workspace contexts returned HTTP 200 and demonstrated the
+  label/context mismatch. This entry is pushed in its audit-only commit to
+  `codex/orbit-openai-migration`.
+
 ## 2026-08-15 08:23:18 IST — Give a beginner workspace example
 
 - Explained the workspace selector with a simple two-business example: each
