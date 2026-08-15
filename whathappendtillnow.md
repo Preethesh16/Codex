@@ -2530,7 +2530,31 @@ changing `main` or causing external publishing without approval.
   demo asset, and publish the media-only revision to the default branch and
   `main`. Credentials will remain in the ignored server environment file and
   will not be printed or committed.
-- Status: in progress.
+- Extended the current browser walkthrough with a six-second presentation of
+  the repository-owned CAZ GPT Image poster, the full repository-owned
+  8.07-second Sora advertisement, and a closing Codex credit card. The Sora
+  source audio is intentionally muted so the demo has one continuous voice
+  track and cannot reproduce the previous overlap/echo problem.
+- Generated a new Orbit `tts-1` narration that begins, "This demonstration was
+  recorded and spoken by Codex," and describes the live agents, dedicated
+  rooms, GPT Image output, Sora adapter/fallback, and human approval boundary.
+  The first authenticated audio-download attempt returned HTTP 401 because the
+  session cookie was not forwarded to the generated-file request; forwarding
+  the same short-lived local session fixed it. No credential was printed or
+  written to the repository.
+- Replaced the README video with a 48.08-second, 1600×1000, 24 fps H.264 file
+  with 48 kHz mono AAC, and replaced its preview with a montage of the live
+  Marketing chat, actual poster, and actual Sora frame. Updated README duration
+  and scope copy. Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`,
+  `docs/assets/orbit-full-workflow-demo-preview.jpg`, and this audit log.
+- Verification passed: full FFmpeg decode produced no errors, `ffprobe`
+  confirmed the expected streams and 48.083-second duration, audio measured
+  -16.9 dB mean / -1.4 dB peak with no one-second silence gaps, representative
+  UI/poster/Sora/credit frames passed visual inspection, and
+  `git diff --check` passed.
+- Commit and push status: publishing this verified extended-demo milestone to
+  the default branch and merging it into `main` immediately after this entry.
 
 #### Change batch — narrated evaluator demo
 
@@ -2793,3 +2817,14 @@ changing `main` or causing external publishing without approval.
   is published to `codex/orbit-openai-migration`, and merge commit `9fe8f68` is
   published to `codex/main`. This final audit-only delivery confirmation is
   synchronized to both branches immediately after this line.
+
+### Prompt — extend the demo with Orbit's poster and Sora advertisement
+
+- The owner requested that the narrated README demo also show the real CAZ
+  poster and Orbit-generated Sora advertisement, run longer, and explicitly say
+  that Codex recorded and spoke the video.
+- Extend the verified current-UI recording with the existing repository-owned
+  GPT Image and Sora outputs, replace the narration with one clean continuous
+  Codex-credited voice track, refresh the preview/README duration and scope,
+  verify media integrity, then publish to default and merge into `main`.
+- Status: in progress.
