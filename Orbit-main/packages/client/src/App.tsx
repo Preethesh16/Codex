@@ -74,7 +74,8 @@ const DEPT_SEQUENCE = [
 const STARTUPFORGE_CLIENT_URL = import.meta.env.VITE_STARTUPFORGE_CLIENT_URL || 'http://localhost:5173';
 
 export default function App() {
-  const [authMode, setAuthMode] = useState<'loading' | 'setup' | 'login' | 'authenticated'>('loading');
+  const [authMode, setAuthMode] = useState<'loading' | 'landing' | 'setup' | 'login' | 'authenticated'>('loading');
+  const [firstRunSetupAvailable, setFirstRunSetupAvailable] = useState(false);
   const [authLoginName, setAuthLoginName] = useState('');
   const [authCompanyVision, setAuthCompanyVision] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -223,7 +224,8 @@ export default function App() {
       })
       .then((data) => {
         setAuthLoginName(data.loginName || data.suggestedLoginName || '');
-        setAuthMode(data.authenticated ? 'authenticated' : data.setupRequired ? 'setup' : 'login');
+        setFirstRunSetupAvailable(Boolean(data.setupRequired));
+        setAuthMode(data.authenticated ? 'authenticated' : 'landing');
       })
       .catch((error) => {
         setAuthError(error instanceof Error ? error.message : 'Could not check the Orbit login.');
@@ -293,8 +295,29 @@ export default function App() {
       setAuthError('');
       setContext(null);
       setTasks([]);
-      setAuthMode('login');
+      setAuthMode('landing');
     }
+  };
+
+  const openLogin = () => {
+    setAuthError('');
+    setAuthPassword('');
+    setAuthPasswordConfirm('');
+    setAuthMode('login');
+  };
+
+  const openCompanySetup = () => {
+    setAuthError('');
+    setAuthPassword('');
+    setAuthPasswordConfirm('');
+    if (!firstRunSetupAvailable) {
+      setAuthMode('login');
+      setAuthError('This Orbit workspace is already set up. Sign in first, then use Add company from the workspace.');
+      return;
+    }
+    setAuthLoginName('');
+    setAuthCompanyVision('');
+    setAuthMode('setup');
   };
 
   const handleWorkspaceChange = (nextWorkspaceId: string) => {
@@ -996,6 +1019,42 @@ export default function App() {
           <div className="glass-panel rounded-2xl p-6 shadow-2xl bg-white/80">
             {authMode === 'loading' ? (
               <p className="text-center text-sm text-stone-600">Checking your login…</p>
+            ) : authMode === 'landing' ? (
+              <div className="flex flex-col gap-5">
+                <div>
+                  <h2 className="text-xl font-bold text-stone-900 font-outfit">Start your founder workspace</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-500">
+                    Create your company workspace if you are new to Orbit, or sign in to continue where you left off.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openCompanySetup}
+                  className="w-full flex items-center justify-between gap-4 rounded-xl border border-[#a53600]/25 bg-[#fff1ec] p-4 text-left hover:border-[#a53600]/55 hover:bg-[#ffe9df] transition"
+                >
+                  <span>
+                    <span className="block text-sm font-bold text-stone-900">Create my company</span>
+                    <span className="mt-1 block text-xs text-stone-600">Add your company name, idea, and a private password.</span>
+                  </span>
+                  <ArrowRight className="w-5 h-5 shrink-0 text-[#a53600]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={openLogin}
+                  className="w-full flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white p-4 text-left hover:border-[#a53600]/35 hover:bg-stone-50 transition"
+                >
+                  <span>
+                    <span className="block text-sm font-bold text-stone-900">I already have an account</span>
+                    <span className="mt-1 block text-xs text-stone-600">Use your company name and password to return.</span>
+                  </span>
+                  <ArrowRight className="w-5 h-5 shrink-0 text-stone-500" />
+                </button>
+                {!firstRunSetupAvailable && (
+                  <p className="text-[10px] leading-relaxed text-stone-500 text-center">
+                    This local Orbit installation already has a founder login. Sign in to add another company workspace.
+                  </p>
+                )}
+              </div>
             ) : (
               <form onSubmit={handleAuthentication} className="flex flex-col gap-4">
                 <div>
@@ -1083,6 +1142,13 @@ export default function App() {
                   {isAuthenticating
                     ? authMode === 'setup' ? 'Setting up your workspace…' : 'Signing in…'
                     : authMode === 'setup' ? 'Create company workspace' : 'Sign in'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAuthError(''); setAuthMode('landing'); }}
+                  className="text-xs font-medium text-stone-500 hover:text-[#a53600] transition"
+                >
+                  Back to start
                 </button>
               </form>
             )}

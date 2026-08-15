@@ -3,6 +3,40 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 11:22:01 IST — Add new-founder versus returning-founder landing choice
+
+### Request summary and initial decisions
+
+- The owner identified that the page still jumped directly to returning CAZ
+  login. Add the missing first landing page that explicitly lets a visitor
+  choose between creating a company and signing in.
+- The new-company option opens the combined company-information and password
+  setup flow on a fresh Orbit installation. The returning-founder option opens
+  login. A device already configured for CAZ must not silently overwrite that
+  credential; it will direct the visitor to sign in and add a workspace after
+  authentication.
+
+### Changes and verification
+
+- Added a real landing screen before all unauthenticated flows: `Create my
+  company` opens first-run company/idea/password setup, while `I already have
+  an account` opens company-password login. Both forms include a back-to-start
+  control.
+- A configured local install such as the current CAZ installation now lands on
+  this chooser instead of jumping straight to CAZ login. Choosing new-company
+  there preserves the existing credential and explains that the founder must
+  sign in before using the in-workspace `Add company` control.
+- Files changed: `Orbit-main/packages/client/src/App.tsx` and this journal.
+- The full production build and all 16 server tests passed. A headless browser
+  render against the live configured Orbit API confirmed the new heading,
+  both choice controls, full viewport fit, and the expected configured-device
+  note. The screenshot was visually inspected.
+- No OpenAI/media API request was made and no credits were used. Errors or
+  blockers: none.
+- Commit and push: this verified change is committed in the commit containing
+  this entry and pushed to `codex/orbit-openai-migration`; `codex/main` remains
+  unchanged because this prompt did not request main publication.
+
 ## 2026-08-15 11:12:26 IST — Unify first-run company setup and password
 
 ### Request summary and initial decisions
