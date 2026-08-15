@@ -14,6 +14,18 @@
 
 </div>
 
+## 64-second end-to-end demo
+
+Click the preview to watch the complete browser-recorded workflow: Orbit
+Mission Control and specialist agents, GPT Image campaign output, the generated
+Sora advertisement, Creative & Voice and Code workspaces, StartupForge's
+resumable Codex pipeline, verification results, and the generated-project
+library.
+
+<a href="docs/assets/orbit-full-workflow-demo.mp4"><img src="docs/assets/orbit-full-workflow-demo-preview.jpg" alt="Preview montage of the Orbit end-to-end workflow demo" width="100%" /></a>
+
+**[▶ Watch the full Orbit workflow demo](docs/assets/orbit-full-workflow-demo.mp4)**
+
 ![Orbit Mission Control coordinating the CAZ workspace](docs/assets/orbit-mission-control.png)
 
 ## Why Orbit
