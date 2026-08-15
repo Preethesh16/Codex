@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:47:34 IST — Explain independent local secrets
+
+### Request summary and status
+
+- Explained why the project uses five independent random values: inter-service
+  authentication, Orbit approval authorization, StartupForge credential
+  encryption, MultiVideo session signing, and MultiVideo OAuth-token encryption
+  are separate trust boundaries.
+- Reusing a value would unnecessarily expand the impact of a single service or
+  secret compromise and complicate independent rotation.
+- No secret was generated, read, logged, compared, or changed.
+- Files changed: `whathappendtillnow.md` only. No source/configuration changed
+  and no tests were required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:26:54 IST — Advance from MongoDB to local secrets
 
 ### Request summary and status
