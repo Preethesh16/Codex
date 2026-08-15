@@ -2422,3 +2422,14 @@ changing `main` or causing external publishing without approval.
   submission copy with implemented behavior and supplied demo evidence.
 - No implementation file, external service, or submission form was modified.
   Audit-only update commit and push status: pending.
+
+### Prompt — add prior Codex community context to submission copy
+
+- The owner requested that the Codex-use answer mention prior familiarity with
+  Codex and conversations with Siddhant Sadangi, described by the owner as an
+  OpenAI developer-community member based in Dublin, Ireland.
+- The wording will distinguish community participation from OpenAI employment
+  and will connect that earlier exposure honestly to the team's decision to use
+  Codex as both a product capability and engineering copilot.
+- No implementation file or external submission was modified. Audit-only
+  update status: pending.
