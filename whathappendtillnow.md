@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:36:35 IST — Retry MongoDB after credential substitution
+
+### Request summary and initial status
+
+- Retry safe structural validation and a bounded live MongoDB connection after
+  the local URI placeholders and database path were reportedly corrected.
+- Structural validation passed: scheme, substituted credentials, host, and the
+  database path are present. Atlas SRV DNS resolution also passed.
+- The bounded live Mongoose connection timed out before authentication, which
+  indicates the current network is not permitted by Atlas (or is locally
+  blocking Atlas traffic). The next action is to add the current IP under Atlas
+  Database & Network Access and retry after propagation.
+- No URI or credential value was exposed and no implementation file changed.
+  Commit and push: recorded in the audit-only commit following this entry.
+
 ## 2026-08-15 07:34:02 IST — Retry live MongoDB validation
 
 ### Request summary and initial status
