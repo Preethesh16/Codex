@@ -42,7 +42,8 @@ import {
   SlidersHorizontal,
   Mic,
   Upload,
-  Plus
+  Plus,
+  Copy
 } from 'lucide-react';
 import { StartupContext, AgentMessage, ExecutionTask, Conflict } from 'orbit-core';
 
@@ -78,6 +79,9 @@ export default function App() {
   const [newCompanyName, setNewCompanyName] = useState('');
   const [addCompanyError, setAddCompanyError] = useState('');
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
+  const [copiedMessageKey, setCopiedMessageKey] = useState('');
+  const [activeReplyAction, setActiveReplyAction] = useState('');
+  const [replyActionNotice, setReplyActionNotice] = useState<{ key: string; text: string; error?: boolean } | null>(null);
   const [objective, setObjective] = useState('');
   const [context, setContext] = useState<StartupContext | null>(null);
   const [tasks, setTasks] = useState<ExecutionTask[]>([]);
@@ -400,14 +404,28 @@ export default function App() {
     }
   };
 
-  // Refine budget via AI
-  const handleRefineBudget = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!budgetRefinePrompt.trim() || isRefiningBudget) return;
+  const copyAgentReply = async (text: string, messageKey: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageKey(messageKey);
+      window.setTimeout(() => setCopiedMessageKey((current) => current === messageKey ? '' : current), 2_000);
+    } catch {
+      setReplyActionNotice({ key: messageKey, text: 'Copy was blocked by the browser. Select the reply and try again.', error: true });
+    }
+  };
+
+  // Refine budget via AI using either the finance form or a Finance reply.
+  const refineBudget = async (prompt: string, messageKey?: string) => {
+    const normalizedPrompt = prompt.trim();
+    if (!normalizedPrompt || isRefiningBudget) return;
     setIsRefiningBudget(true);
+    if (messageKey) {
+      setActiveReplyAction(`${messageKey}:budget`);
+      setReplyActionNotice(null);
+    }
 
     // Append to finance chat
-    const userMsg = `Refine budget: ${budgetRefinePrompt}`;
+    const userMsg = messageKey ? 'Refine the budget using the Finance recommendation above.' : `Refine budget: ${normalizedPrompt}`;
     setChatHistories(prev => ({
       ...prev,
       Finance: [...(prev.Finance || []), {
@@ -421,32 +439,38 @@ export default function App() {
       const res = await fetch('/api/finance/refine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspaceId, prompt: budgetRefinePrompt })
+        body: JSON.stringify({ workspaceId, prompt: normalizedPrompt })
       });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setContext(data.context);
-        setBudgetRefinePrompt('');
-        
-        // Append response
-        setChatHistories(prev => ({
-          ...prev,
-          Finance: [...(prev.Finance || []), {
-            sender: 'agent',
-            text: `Budget refinement processed successfully:
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Budget refinement failed.');
+      setContext(data.context);
+      setBudgetRefinePrompt('');
+
+      // Append response
+      setChatHistories(prev => ({
+        ...prev,
+        Finance: [...(prev.Finance || []), {
+          sender: 'agent',
+          text: `Budget refinement processed successfully:
 - Updated Runway: **${data.context.financials.runwayMonths} Months**
 - Updated burn rate: **$${data.context.financials.burnRate}/mo**
 - Updated Infra cost: **$${data.context.financials.infrastructureCost}/mo**`,
-            timestamp: new Date().toLocaleTimeString()
-          }]
-        }));
-      }
+          timestamp: new Date().toLocaleTimeString()
+        }]
+      }));
+      if (messageKey) setReplyActionNotice({ key: messageKey, text: 'Budget updated from this recommendation.' });
     } catch (err) {
       console.error('Error refining budget:', err);
+      if (messageKey) setReplyActionNotice({ key: messageKey, text: err instanceof Error ? err.message : 'Budget refinement failed.', error: true });
     } finally {
       setIsRefiningBudget(false);
+      if (messageKey) setActiveReplyAction('');
     }
+  };
+
+  const handleRefineBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await refineBudget(budgetRefinePrompt);
   };
 
   // Submit local secure vault entry
@@ -533,54 +557,85 @@ export default function App() {
   };
 
   // ── GPT Image poster generation (multiple options) ──
-  const triggerNanoBanana = async () => {
-    if (!posterPrompt.trim()) return;
+  const generatePoster = async (prompt: string, count = 2, messageKey?: string) => {
+    const normalizedPrompt = prompt.trim();
+    if (!normalizedPrompt || isGeneratingBanana) return;
     setIsGeneratingBanana(true);
     setPosterUrls([]);
+    setPosterPrompt(normalizedPrompt);
+    if (messageKey) {
+      setActiveReplyAction(`${messageKey}:poster`);
+      setReplyActionNotice(null);
+    }
     try {
       const res = await fetch('/api/marketing/poster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: posterPrompt, count: 2, workspaceId })
+        body: JSON.stringify({ prompt: normalizedPrompt, count, workspaceId })
       });
       const data = await res.json();
-      if (res.ok) setPosterUrls((data.options || []).map((o: any) => o.url));
+      if (!res.ok) throw new Error(data.error || 'Poster generation failed.');
+      setPosterUrls((data.options || []).map((o: any) => o.url));
+      if (messageKey) setReplyActionNotice({ key: messageKey, text: 'Poster generated from this reply. Open it in the Marketing panel.' });
     } catch (err) {
       console.error('Poster generation error', err);
+      if (messageKey) setReplyActionNotice({ key: messageKey, text: err instanceof Error ? err.message : 'Poster generation failed.', error: true });
     } finally {
       setIsGeneratingBanana(false);
+      if (messageKey) setActiveReplyAction('');
     }
   };
 
+  const triggerNanoBanana = () => generatePoster(posterPrompt);
+
   // ── Sora ad-video kit (falls back to storyboard) ──
-  const triggerAdKit = async () => {
-    if (!posterPrompt.trim()) return;
+  const generateAdVideo = async (prompt: string, messageKey?: string) => {
+    const normalizedPrompt = prompt.trim();
+    if (!normalizedPrompt || isGeneratingAd) return;
     setIsGeneratingAd(true);
     setAdKit(null);
+    setPosterPrompt(normalizedPrompt);
+    if (messageKey) {
+      setActiveReplyAction(`${messageKey}:video`);
+      setReplyActionNotice(null);
+    }
     try {
       const res = await fetch('/api/marketing/adkit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product: posterPrompt, workspaceId })
+        body: JSON.stringify({
+          product: normalizedPrompt,
+          workspaceId,
+          ...(messageKey ? { seconds: 4, fallbackStills: 1 } : {}),
+        })
       });
-      if (res.ok) {
-        const initial = await res.json();
-        setAdKit(initial);
-        for (let attempt = 0; attempt < 70 && initial.jobId; attempt += 1) {
-          await new Promise((resolve) => setTimeout(resolve, 5_000));
-          const jobResponse = await fetch(`/api/media/jobs/${initial.jobId}`);
-          if (!jobResponse.ok) break;
-          const job = await jobResponse.json();
-          if (job.output) setAdKit({ ...job.output, jobId: job.id, status: job.status });
-          if (['completed', 'failed', 'fallback'].includes(job.status)) break;
+      const initial = await res.json();
+      if (!res.ok) throw new Error(initial.error || 'Video generation failed.');
+      setAdKit(initial);
+      for (let attempt = 0; attempt < 70 && initial.jobId; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+        const jobResponse = await fetch(`/api/media/jobs/${initial.jobId}`);
+        if (!jobResponse.ok) break;
+        const job = await jobResponse.json();
+        if (job.output) setAdKit({ ...job.output, jobId: job.id, status: job.status });
+        if (['completed', 'failed', 'fallback'].includes(job.status)) {
+          if (messageKey) {
+            const text = job.status === 'completed' ? 'Video generated from this reply.' : 'Sora was unavailable; the storyboard fallback is ready.';
+            setReplyActionNotice({ key: messageKey, text, error: job.status === 'failed' });
+          }
+          break;
         }
       }
     } catch (err) {
       console.error('Ad kit error', err);
+      if (messageKey) setReplyActionNotice({ key: messageKey, text: err instanceof Error ? err.message : 'Video generation failed.', error: true });
     } finally {
       setIsGeneratingAd(false);
+      if (messageKey) setActiveReplyAction('');
     }
   };
+
+  const triggerAdKit = () => generateAdVideo(posterPrompt);
 
   // ── Caption & Voice Agent handlers ──
   const generateCaptions = async () => {
@@ -863,7 +918,7 @@ export default function App() {
                 <select
                   value={workspaceId}
                   onChange={(e) => handleWorkspaceChange(e.target.value)}
-                  className="w-full px-4 py-2 text-sm text-stone-850 rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600]"
+                  className="orbit-readable-input w-full px-4 py-2 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600]"
                 >
                   {workspaces.map((workspace) => (
                     <option key={workspace.id} value={workspace.id}>{workspace.name} — {workspace.stage}</option>
@@ -879,7 +934,7 @@ export default function App() {
                   value={inputCompanyName}
                   onChange={(e) => setInputCompanyName(e.target.value)}
                   placeholder="e.g. AgriGrow"
-                  className="w-full px-4 py-2 text-sm text-stone-850 rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] placeholder:text-stone-400 font-sans mb-1"
+                  className="orbit-readable-input w-full px-4 py-2 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] placeholder:text-stone-400 font-sans mb-1"
                   required
                 />
               </div>
@@ -890,7 +945,7 @@ export default function App() {
                   value={objective}
                   onChange={(e) => setObjective(e.target.value)}
                   placeholder="Describe your product idea... (e.g. 'Build an automated CRM system for organic farms')"
-                  className="w-full h-24 p-4 text-sm text-stone-850 rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] placeholder:text-stone-400 resize-none font-sans leading-relaxed focus:shadow-[0_0_20px_rgba(165,54,0,0.06)]"
+                  className="orbit-readable-input w-full h-24 p-4 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] placeholder:text-stone-400 resize-none font-sans leading-relaxed focus:shadow-[0_0_20px_rgba(165,54,0,0.06)]"
                   required
                 />
               </div>
@@ -1509,6 +1564,56 @@ export default function App() {
                           return <p key={lIdx} className="my-0.5">{line}</p>;
                         })}
                       </div>
+                      {msg.sender === 'agent' && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => copyAgentReply(msg.text, `${activeView}-${idx}`)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-stone-600 bg-white border border-stone-200 rounded-md hover:border-[#a53600]/40 hover:text-[#a53600] transition"
+                          >
+                            {copiedMessageKey === `${activeView}-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            {copiedMessageKey === `${activeView}-${idx}` ? 'Copied' : 'Copy'}
+                          </button>
+                          {activeView === 'Finance' && (
+                            <button
+                              type="button"
+                              onClick={() => refineBudget(msg.text, `${activeView}-${idx}`)}
+                              disabled={isRefiningBudget}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-white bg-[#a53600] rounded-md hover:bg-[#812800] disabled:opacity-50 transition"
+                            >
+                              <SlidersHorizontal className="w-3 h-3" />
+                              {activeReplyAction === `${activeView}-${idx}:budget` ? 'Refining…' : 'Refine budget'}
+                            </button>
+                          )}
+                          {activeView === 'Marketing' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => generatePoster(msg.text, 1, `${activeView}-${idx}`)}
+                                disabled={isGeneratingBanana || isGeneratingAd}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-white bg-[#a53600] rounded-md hover:bg-[#812800] disabled:opacity-50 transition"
+                              >
+                                <Image className="w-3 h-3" />
+                                {activeReplyAction === `${activeView}-${idx}:poster` ? 'Generating…' : 'Generate poster'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => generateAdVideo(msg.text, `${activeView}-${idx}`)}
+                                disabled={isGeneratingAd || isGeneratingBanana}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-[#a53600] bg-white border border-[#a53600]/30 rounded-md hover:bg-[#fff1ec] disabled:opacity-50 transition"
+                              >
+                                <Play className="w-3 h-3" />
+                                {activeReplyAction === `${activeView}-${idx}:video` ? 'Generating 4s video…' : 'Generate video'}
+                              </button>
+                            </>
+                          )}
+                          {replyActionNotice?.key === `${activeView}-${idx}` && (
+                            <span className={`basis-full text-[10px] ${replyActionNotice.error ? 'text-red-700' : 'text-emerald-700'}`}>
+                              {replyActionNotice.text}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {isChatLoading && (

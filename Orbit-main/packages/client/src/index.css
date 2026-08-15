@@ -31,6 +31,27 @@
   color: #a53600;
 }
 
+/* Keep onboarding text readable even when browser/autofill themes inject a
+   light text color. */
+.orbit-readable-input {
+  color: #292524 !important;
+  -webkit-text-fill-color: #292524 !important;
+  caret-color: #a53600;
+}
+
+.orbit-readable-input::placeholder {
+  color: #a8a29e !important;
+  -webkit-text-fill-color: #a8a29e !important;
+  opacity: 1;
+}
+
+.orbit-readable-input:-webkit-autofill,
+.orbit-readable-input:-webkit-autofill:hover,
+.orbit-readable-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #292524 !important;
+  box-shadow: 0 0 0 1000px #fff1ec inset;
+}
+
 /* Background soft warm lights instead of blue orbs */
 .glow-orb {
   position: absolute;

@@ -3,6 +3,45 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 08:36:05 IST — Readable onboarding and agent reply actions
+
+### Request summary and initial decisions
+
+- Correct onboarding text-entry contrast so typed company and idea text remains
+  clearly visible across browser/default autofill styles.
+- Add a copy control to every agent response. Add contextual direct actions that
+  reuse the response text without manual copying: Finance can refine the budget,
+  while Marketing can generate a poster or a video.
+- Direct actions will call the existing finance and media endpoints exactly
+  once, show progress/error feedback, and will not trigger a redundant chat
+  request. Existing approval boundaries remain unchanged.
+
+### Changes and verification
+
+- Added a high-contrast onboarding input class with explicit text, caret,
+  placeholder, and browser-autofill colors. It is applied to the startup name,
+  startup idea, and onboarding workspace selector.
+- Every agent response now has a `Copy` button with short-lived copied feedback
+  and a browser-blocked error message. Finance responses additionally expose
+  `Refine budget`; the response is sent directly to the existing refinement
+  endpoint and the updated figures are appended to the Finance conversation.
+- Marketing responses expose `Generate poster` and `Generate video`. These pass
+  the reply directly to the existing media endpoints, surface progress and
+  completion/fallback errors, and populate the existing Marketing media panel.
+  The quick poster action requests one image and the quick video action requests
+  the minimum four-second video with one fallback still to reduce paid usage;
+  the original studio controls retain their existing defaults.
+- Files changed: `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/client/src/index.css`, and this journal.
+- The complete Orbit production build passed and all 15 server tests passed.
+  The live Vite module and stylesheet contain the readable-input rules and all
+  four reply controls. No paid Finance, image, or video request was made during
+  this verification; endpoint behavior remains covered by the existing mock
+  media and runtime tests.
+- Diff whitespace and credential-pattern checks passed with no errors. The
+  verified change is committed and pushed in the commit containing this entry
+  to `codex/orbit-openai-migration`; `main` remains unchanged.
+
 ## 2026-08-15 08:30:01 IST — Dynamic workspaces and add-company control
 
 ### Request summary and initial decisions
