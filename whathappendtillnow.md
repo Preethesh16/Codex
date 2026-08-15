@@ -3,6 +3,20 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:59:54 IST — Confirm OAuth web-client fields
+
+### Request summary and status
+
+- Reviewed the Google Auth Platform client-creation screenshot and confirmed the
+  Web application type and local client name are correct.
+- Reconfirmed the two localhost origins and the distinct Google-login and
+  YouTube-connect redirect URIs, with exact scheme/port/path and no trailing
+  slash.
+- No client was created by Codex and no generated ID or secret was viewed or
+  recorded.
+- Files changed: `whathappendtillnow.md` only. No source changed or tests ran.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:58:35 IST — Advance from OAuth consent to client credentials
 
 ### Request summary and status
