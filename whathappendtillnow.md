@@ -3,6 +3,38 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 05:53:23 IST — Confirm cleaned integration and owner prerequisites
+
+### Request summary
+
+Confirm whether the collaborator checkpoint contains worthwhile improvements,
+establish the safe integration approach, and provide the project owner with an
+exact credential, account-configuration, and approval checklist needed to
+complete live acceptance testing.
+
+### Decision and status
+
+- Confirmed the CORS correction, StartupForge launch-state UX, and development
+  watcher are worth retaining.
+- Recommended a cleaned integration rather than merging the checkpoint
+  unchanged: make the StartupForge client URL configurable, remove and ignore
+  runtime feedback data, avoid peer-only lockfile churn, and preserve the audit
+  requirement.
+- The OpenAI API project must have billing/quota and access for the configured
+  agent, image, speech, transcription, and video models. The same secret may be
+  installed separately in the ignored Orbit and StartupForge environment files;
+  it must not be pasted into chat or committed.
+- Live publishing additionally requires a MongoDB connection, Google/YouTube
+  OAuth configuration, and explicit approval for the private/unlisted upload.
+  StartupForge's application-level GitHub OAuth credentials are optional unless
+  its in-app repository publishing flow is part of the live demo.
+- No merge, implementation change, credential handling, provider call,
+  deployment, publication, or main-branch change was performed in this batch.
+- Files changed: `whathappendtillnow.md` only for this required audit entry.
+- Tests: no source changed; the collaborator branch's previously recorded clean
+  build and 15 passing Orbit server tests remain authoritative.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 05:48:26 IST — Review collaborator branch against migration plan
 
 ### Request summary
