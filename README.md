@@ -16,8 +16,9 @@
 
 ## 64-second end-to-end demo
 
-Click the preview to watch the complete browser-recorded workflow: Orbit
-Mission Control and specialist agents, GPT Image campaign output, the generated
+Click the preview to watch the complete narrated browser workflow, featuring an
+OpenAI `tts-1` voiceover over the original Sora soundtrack: Orbit Mission
+Control and specialist agents, GPT Image campaign output, the generated
 Sora advertisement, Creative & Voice and Code workspaces, StartupForge's
 resumable Codex pipeline, verification results, and the generated-project
 library.
