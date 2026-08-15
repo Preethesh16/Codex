@@ -2433,3 +2433,54 @@ changing `main` or causing external publishing without approval.
   Codex as both a product capability and engineering copilot.
 - No implementation file or external submission was modified. Audit-only
   update status: pending.
+
+### Prompt — record and publish a short full-workflow demo
+
+- The owner authorized a short browser-recorded Orbit demonstration and a push
+  to the existing default `main` branch.
+- The recording will use the existing local applications and already-generated
+  media to avoid new OpenAI credit usage. It should demonstrate Orbit Mission
+  Control, the multi-agent workflow, marketing image and Sora video evidence,
+  voice/media capabilities, and StartupForge's Codex build/repair workflow.
+- The final recording will be compressed for repository delivery, linked from
+  the evaluator README, verified locally, and published without pulling or
+  merging unrelated branches.
+
+#### Planned verification and status
+
+- Inspect local run scripts and demo fixtures, start only required services,
+  record the browser workflow, validate the video with `ffprobe`, check
+  repository size and Markdown links, then publish to the authorized branches.
+  Status: in progress.
+
+#### Change batch — browser workflow recording and evaluator entry
+
+- Recorded a real local browser walkthrough of Orbit Mission Control,
+  specialist departments, the Marketing studio, Creative & Voice, Code support,
+  StartupForge's Codex pipeline, and its generated-project library.
+- Reused the existing GPT Image poster, complete Sora advertisement, stored
+  agent/build evidence, and completed 49-file StartupForge project. No OpenAI
+  generation request or other model-credit usage occurred during recording.
+- Preserved the Sora advertisement's original audio and added a labeled poster
+  interlude after browser paint-stream inspection found the static poster frame
+  was skipped in the first raw capture.
+- Added a four-panel evaluator preview and a prominent link near the top of the
+  root README.
+- Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`,
+  `docs/assets/orbit-full-workflow-demo-preview.jpg`, and this audit log.
+- Video validation with `ffprobe`: passed; 64.2 seconds, 1280×720 H.264
+  video, AAC audio, 2,041,536 bytes. Full decode with `ffmpeg`: passed.
+- Preview validation with ImageMagick: passed; 1280×720 JPEG, 105,723
+  bytes. README link and Markdown whitespace checks: passed.
+- The first Orbit client start command passed a host flag at the wrong npm
+  layer; it exited without changing files and the corrected command started the
+  client. A thumbnail shell loop also had a quoting error; the single-command
+  replacement succeeded. During build-event inspection, a temporary query file
+  was accidentally directed to `/tmp`; it was immediately deleted and no
+  external project or user data was read.
+- The temporary recorder dependencies, browser profile, raw recording, and
+  contact sheets were deleted after validation. Only the final MP4 and preview
+  remain. The temporary Orbit client, StartupForge server/client, and asset
+  server were stopped; the pre-existing Orbit API process was left untouched.
+- Commit and push status: pending.
