@@ -4,13 +4,14 @@ import cors from 'cors';
 import { db } from './db.js';
 import { StartupContext, AgentMessage, ExecutionTask, Conflict } from 'orbit-core';
 import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { registerCreative } from './creative.js';
 import { applyValidatedContextPatch, normalizeOpenAIError, refineFinancePlan, runDepartmentAgent, runOrbitWorkflow, type OrbitDepartment } from './openaiRuntime.js';
 import { createApproval, decideApproval, listAgentRuns, listApprovals, saveAgentRun, updateApprovalExecution } from './runStore.js';
 import { startupForgeProfileFromContext } from './startupForgeBridge.js';
 import { allowedOrigins, createRateLimit, isAllowedOrigin } from './httpPolicy.js';
+import { createOrbitAuthStore } from './orbitAuth.js';
 
 const __dirnameServer = dirname(fileURLToPath(import.meta.url));
 
@@ -27,6 +28,55 @@ const aiRateLimit = createRateLimit(Number.isFinite(configuredAiLimit) && config
 app.use(['/api/chat', '/api/execution/trigger', '/api/finance/refine', '/api/marketing', '/api/creative', '/api/deck'], aiRateLimit);
 
 const PORT = process.env.PORT || 5000;
+const authStore = createOrbitAuthStore(process.env.ORBIT_AUTH_PATH
+  ? resolve(process.env.ORBIT_AUTH_PATH)
+  : join(process.cwd(), 'uploads', 'orbit-auth.json'));
+const authRateLimit = createRateLimit(8, 5 * 60_000);
+
+app.get('/api/auth/session', (req, res) => {
+  const session = authStore.sessionFromRequest(req);
+  const suggestedLoginName = getContext('default-workspace').companyName;
+  res.json({
+    authenticated: Boolean(session),
+    setupRequired: !authStore.hasCredential(),
+    loginName: session?.loginName,
+    suggestedLoginName,
+  });
+});
+
+app.post('/api/auth/setup', authRateLimit, async (req, res) => {
+  if (authStore.hasCredential()) return res.status(409).json({ error: 'Orbit login has already been configured.' });
+  const expectedName = getContext('default-workspace').companyName;
+  const requestedName = typeof req.body.loginName === 'string' ? req.body.loginName.trim() : '';
+  if (requestedName.toLowerCase() !== expectedName.toLowerCase()) {
+    return res.status(400).json({ error: `Create the login for ${expectedName}.` });
+  }
+  try {
+    const session = await authStore.setup(expectedName, req.body.password);
+    res.setHeader('Set-Cookie', authStore.cookieFor(session));
+    res.status(201).json({ authenticated: true, loginName: session.loginName });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Could not create the Orbit login.' });
+  }
+});
+
+app.post('/api/auth/login', authRateLimit, async (req, res) => {
+  const session = await authStore.authenticate(req.body.loginName, req.body.password);
+  if (!session) return res.status(401).json({ error: 'Company name or password is incorrect.' });
+  res.setHeader('Set-Cookie', authStore.cookieFor(session));
+  res.json({ authenticated: true, loginName: session.loginName });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.setHeader('Set-Cookie', authStore.clearCookie());
+  res.json({ authenticated: false });
+});
+
+app.use(['/api', '/generated'], (req, res, next) => {
+  if (!authStore.hasCredential()) return res.status(428).json({ error: 'Create the Orbit login first.', code: 'AUTH_SETUP_REQUIRED' });
+  if (!authStore.sessionFromRequest(req)) return res.status(401).json({ error: 'Sign in to Orbit.', code: 'AUTH_REQUIRED' });
+  next();
+});
 
 app.get('/api/agent-runs', (req, res) => {
   res.json(listAgentRuns(String(req.query.workspaceId || 'default-workspace')));

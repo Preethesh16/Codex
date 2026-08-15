@@ -43,7 +43,8 @@ import {
   Mic,
   Upload,
   Plus,
-  Copy
+  Copy,
+  LogOut
 } from 'lucide-react';
 import { StartupContext, AgentMessage, ExecutionTask, Conflict } from 'orbit-core';
 
@@ -73,6 +74,12 @@ const DEPT_SEQUENCE = [
 const STARTUPFORGE_CLIENT_URL = import.meta.env.VITE_STARTUPFORGE_CLIENT_URL || 'http://localhost:5173';
 
 export default function App() {
+  const [authMode, setAuthMode] = useState<'loading' | 'setup' | 'login' | 'authenticated'>('loading');
+  const [authLoginName, setAuthLoginName] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [workspaceId, setWorkspaceId] = useState('default-workspace');
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [isAddingCompany, setIsAddingCompany] = useState(false);
@@ -207,14 +214,73 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchWorkspaces();
+    fetch('/api/auth/session', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Could not check the Orbit login.');
+        return response.json();
+      })
+      .then((data) => {
+        setAuthLoginName(data.loginName || data.suggestedLoginName || 'CAZ');
+        setAuthMode(data.authenticated ? 'authenticated' : data.setupRequired ? 'setup' : 'login');
+      })
+      .catch((error) => {
+        setAuthError(error instanceof Error ? error.message : 'Could not check the Orbit login.');
+        setAuthMode('login');
+      });
   }, []);
 
   useEffect(() => {
+    if (authMode === 'authenticated') fetchWorkspaces();
+  }, [authMode]);
+
+  useEffect(() => {
+    if (authMode !== 'authenticated') return;
     fetchData();
     const interval = setInterval(fetchData, 1500);
     return () => clearInterval(interval);
-  }, [workspaceId]);
+  }, [workspaceId, authMode]);
+
+  const handleAuthentication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isAuthenticating) return;
+    if (authMode === 'setup' && authPassword !== authPasswordConfirm) {
+      setAuthError('Passwords do not match.');
+      return;
+    }
+    setIsAuthenticating(true);
+    setAuthError('');
+    try {
+      const response = await fetch(authMode === 'setup' ? '/api/auth/setup' : '/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginName: authLoginName, password: authPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not sign in to Orbit.');
+      setAuthLoginName(data.loginName);
+      setAuthPassword('');
+      setAuthPasswordConfirm('');
+      setAuthMode('authenticated');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Could not sign in to Orbit.');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } finally {
+      setAuthPassword('');
+      setAuthPasswordConfirm('');
+      setAuthError('');
+      setContext(null);
+      setTasks([]);
+      setAuthMode('login');
+    }
+  };
 
   const handleWorkspaceChange = (nextWorkspaceId: string) => {
     const selected = workspaces.find((workspace) => workspace.id === nextWorkspaceId);
@@ -889,6 +955,99 @@ export default function App() {
     { name: 'Conflict', icon: Settings2, color: 'from-[#a53600] to-[#cc490e]', description: 'Mediates department contradictions, outputs compromise logs.' }
   ];
 
+  if (authMode !== 'authenticated') {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center bg-[#fff8f6] overflow-hidden text-stone-850 px-4">
+        <div className="glow-orb w-[700px] h-[700px] bg-amber-100/30 top-[-300px] left-[-300px]" />
+        <div className="glow-orb w-[600px] h-[600px] bg-orange-100/20 bottom-[-300px] right-[-300px]" />
+        <div className="w-full max-w-md z-10">
+          <div className="text-center mb-6">
+            <div className="mx-auto mb-4 flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#a53600] to-[#cc490e] text-white shadow-[0_4px_20px_rgba(165,54,0,0.15)]">
+              <FolderDot className="w-8 h-8" />
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-stone-900 font-outfit">Orbit</h1>
+            <p className="text-xs text-stone-500 uppercase tracking-widest font-mono mt-2">Founder workspace</p>
+          </div>
+
+          <div className="glass-panel rounded-2xl p-6 shadow-2xl bg-white/80">
+            {authMode === 'loading' ? (
+              <p className="text-center text-sm text-stone-600">Checking your login…</p>
+            ) : (
+              <form onSubmit={handleAuthentication} className="flex flex-col gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-stone-900 font-outfit">
+                    {authMode === 'setup' ? `Create a password for ${authLoginName || 'CAZ'}` : 'Welcome back'}
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-500">
+                    {authMode === 'setup'
+                      ? 'This is the one-time setup. Your password is hashed locally and is never stored as readable text.'
+                      : 'Enter your company name and password to open Orbit.'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Company login</label>
+                  <input
+                    type="text"
+                    name="username"
+                    autoComplete="username"
+                    value={authLoginName}
+                    onChange={(e) => setAuthLoginName(e.target.value)}
+                    readOnly={authMode === 'setup'}
+                    className="orbit-readable-input w-full px-4 py-2.5 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600] read-only:opacity-75"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    autoComplete={authMode === 'setup' ? 'new-password' : 'current-password'}
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    minLength={8}
+                    maxLength={128}
+                    className="orbit-readable-input w-full px-4 py-2.5 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600]"
+                    required
+                  />
+                </div>
+
+                {authMode === 'setup' && (
+                  <div>
+                    <label className="block text-xs text-stone-600 font-mono mb-1.5 uppercase tracking-wider">Confirm password</label>
+                    <input
+                      type="password"
+                      name="password-confirmation"
+                      autoComplete="new-password"
+                      value={authPasswordConfirm}
+                      onChange={(e) => setAuthPasswordConfirm(e.target.value)}
+                      minLength={8}
+                      maxLength={128}
+                      className="orbit-readable-input w-full px-4 py-2.5 text-sm rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600]"
+                      required
+                    />
+                  </div>
+                )}
+
+                {authError && <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{authError}</p>}
+
+                <button
+                  type="submit"
+                  disabled={isAuthenticating || !authLoginName.trim() || authPassword.length < 8}
+                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#a53600] to-[#cc490e] hover:from-[#812800] hover:to-[#a53600] rounded-xl transition shadow-[0_4px_25px_rgba(165,54,0,0.12)] disabled:opacity-50"
+                >
+                  {isAuthenticating ? 'Please wait…' : authMode === 'setup' ? 'Create password and enter Orbit' : 'Sign in'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* ----------------- RENDER ONBOARDING SCREEN ----------------- */
   if (!hasIdeaLaunched) {
     return (
@@ -1134,6 +1293,14 @@ export default function App() {
             <span className="font-bold text-stone-850 bg-white px-2.5 py-1 rounded-lg border border-stone-200">
               {context?.companyName || 'Acme Analytics'}
             </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-semibold text-stone-600 bg-white border border-stone-200 rounded-lg hover:text-[#a53600] hover:border-[#a53600]/35 transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Logout
+            </button>
           </div>
         </header>
 

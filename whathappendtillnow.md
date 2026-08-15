@@ -3,6 +3,54 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 08:52:39 IST — CAZ password login and Orbit logout
+
+### Request summary and initial decisions
+
+- Add a first-run CAZ password-creation screen, persistent login, and an Orbit
+  logout control so the founder can securely return to the existing workspace.
+- Password entry will occur only in the browser. The server will store a salted
+  scrypt hash in the ignored, permission-restricted runtime data directory;
+  plaintext passwords will never be logged, committed, or returned.
+- Authentication will use a signed, expiring HTTP-only SameSite cookie. Login
+  will be rate-limited, protected API routes will require the session, and
+  logout will invalidate the cookie. Local bootstrap may create the first
+  credential only while none exists.
+
+### Changes and verification
+
+- Added a first-run `Create password for CAZ` screen and a returning-login
+  screen. Browser password-manager attributes are present so the owner can save
+  the CAZ login locally; the application itself never stores plaintext.
+- Added a top-bar `Logout` button. Logout clears the signed session cookie and
+  returns the browser to the CAZ login screen. All Orbit API and generated-file
+  routes now reject unauthenticated requests; setup is allowed only before the
+  first credential exists.
+- Added a local authentication store using salted scrypt hashes, signed 14-day
+  HTTP-only SameSite=Strict cookies, constant-time comparisons, atomic
+  permission-restricted writes, and an eight-attempt/five-minute login limiter.
+  The runtime credential file remains ignored by Git.
+- Files changed: `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/server/src/index.ts`, new
+  `Orbit-main/packages/server/src/orbitAuth.ts`, new
+  `Orbit-main/packages/server/test/orbitAuth.test.mjs`, and this journal.
+- The complete Orbit production build passed. All 16 server tests passed,
+  including hash persistence, one-time setup, case-insensitive CAZ login,
+  incorrect-password rejection, signed-session validation, tamper rejection,
+  and secure-cookie behavior.
+- An isolated HTTP smoke test passed setup-required protection, credential
+  creation, authenticated access, logout, logged-out rejection, wrong-password
+  rejection, and successful re-login. The live Orbit API was restarted with
+  the new code: `/api/auth/session` reports that CAZ setup is required and a
+  protected context request returns HTTP 428 until the owner privately creates
+  the password. Codex did not create or learn that password.
+- The credential scan found only deliberate fake redaction fixtures and no
+  live credentials. No OpenAI/media request was made and no credits were used.
+- Errors or blockers: none. Password recovery is intentionally not included in
+  this local hackathon login; the owner must remember or save the new password.
+- Commit and push: this verified change is committed and pushed in the commit
+  containing this entry to `codex/orbit-openai-migration`; `main` is unchanged.
+
 ## 2026-08-15 08:41:30 IST — Request Orbit login persistence and logout
 
 - The owner requested a logout control and persistent CAZ login credentials.
