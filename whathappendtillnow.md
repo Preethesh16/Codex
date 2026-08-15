@@ -3,6 +3,17 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:29:57 IST — Identify the Atlas URI template
+
+### Request summary and status
+
+- Confirmed that the Atlas Drivers screen displays the correct SRV connection
+  URI template, but that its database-user placeholders must be replaced and a
+  database name added before it can be used by MultiVideo.
+- No URI, username, password, external setting, or implementation file was
+  changed or recorded. Verification was not applicable.
+- Commit and push: recorded in the audit-only commit following this entry.
+
 ## 2026-08-15 07:26:50 IST — Resume MongoDB connection-string setup
 
 ### Request summary and status
