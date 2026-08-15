@@ -2304,7 +2304,6 @@ changing `main` or causing external publishing without approval.
 - Documentation commit: `3abc356` (`docs: present Orbit multi-agent demo`),
   pushed to `codex/orbit-openai-migration`. The status-only audit update will be
   committed separately without rewriting that milestone.
-
 ### Prompt — add team-owned UI redesign evidence
 
 - The owner clarified that the two supplied office-style screenshots are
