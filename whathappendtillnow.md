@@ -2490,3 +2490,17 @@ changing `main` or causing external publishing without approval.
   authorization. The remote main tree and README links were fetched and
   verified after the push. No unrelated branch or application change was
   merged into main.
+
+### Prompt — ensure the workflow demo is on the default branch
+
+- The owner requested that the completed workflow-demo delivery also be merged
+  to the GitHub repository's default branch.
+- The remote symbolic default branch will be verified first. If it is already
+  `main`, no redundant merge or unrelated history change will be created.
+- `git ls-remote --symref codex HEAD` confirmed that GitHub's default branch is
+  `orbit-openai-migration`, currently at `57907d9` before this audit update.
+- The workflow-demo assets and README entry were already delivered to that
+  default branch in milestone `84bf929`; `main` independently contains the same
+  documentation/media delivery at `bfbe88b`.
+- No redundant merge was created. Default-branch content verification passed;
+  final audit-only push status: pending.
