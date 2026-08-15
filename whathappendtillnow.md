@@ -2788,3 +2788,7 @@ changing `main` or causing external publishing without approval.
 - Commit and push status: publishing this verified documentation/media
   milestone to the default branch and merging it into `main` immediately after
   this entry.
+- Delivery completed without force-pushing: media/README milestone `b7ade41`
+  is published to `codex/orbit-openai-migration`, and merge commit `9fe8f68` is
+  published to `codex/main`. This final audit-only delivery confirmation is
+  synchronized to both branches immediately after this line.
