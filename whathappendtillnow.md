@@ -2562,4 +2562,14 @@ changing `main` or causing external publishing without approval.
 - Verify remote branch heads and divergence, merge without force-pushing,
   resolve only genuine conflicts, validate the resulting tree, and push to
   `codex/main`. No deployment or public media publishing is authorized.
-- Status: in progress.
+- Remote inspection found five main-only documentation/media commits and 25
+  default-only commits after the common base. A normal merge preserved both
+  histories; the only content conflict was the audit log, where `main` ended
+  before the newer default-branch entries. Those entries were retained.
+- Verification passed: root `git diff --check`, complete demo-video decode,
+  Orbit core/server/client production builds, and all 16 Orbit server tests.
+- Main merge milestone: `c6384a6` (`merge: synchronize default branch into
+  main`), pushed without force to `codex/main`. Its parents preserve both the
+  former main head and default-branch head `e666cc2`.
+- Remote ancestry verification passed. A final audit synchronization follows
+  so that `main` remains fully inclusive of the documented default branch.
