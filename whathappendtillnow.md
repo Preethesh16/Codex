@@ -2388,4 +2388,24 @@ changing `main` or causing external publishing without approval.
   describing the Orbit team's ownership and Codex's concrete AI engineering
   contributions.
 - Files changed: `README.md`, `whathappendtillnow.md`.
-- Verification, commit, and push status: pending.
+- Markdown whitespace validation with `git diff --check`: passed.
+- Contributor badge, heading, and role checks with `rg`: passed. An initial
+  shell count assertion stopped without modifying files; direct checks passed.
+- Migration commit: `8ae4272` (`docs: finalize Codex contributor credit`),
+  pushed to `codex/orbit-openai-migration`.
+- Documentation-only main commit: `4ecd14b` (`docs: finalize Codex contributor
+  credit`), pushed to `codex/main`. No project code or unrelated branch was
+  changed.
+
+### Prompt — ensure the existing default main branch is updated
+
+- The owner requested that the final README be fixed and published on the
+  existing default `main` branch.
+- The documentation-only change has already been applied directly to
+  `codex/main`; the full migration branch will not be merged merely to deliver
+  README changes, avoiding unrelated history and project changes.
+- Fetched the remote refs and verified that `codex/main` resolves to
+  `4ecd14b1f33dab18c2c0c1651d54735d86b91737`.
+- Verified the remote README contains the Codex badge, Contributors heading,
+  and AI engineering contributor role. Markdown whitespace validation passed.
+- Main push status: complete. Final audit-only commit status: pending.
