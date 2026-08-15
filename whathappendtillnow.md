@@ -3,6 +3,17 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:26:50 IST — Resume MongoDB connection-string setup
+
+### Request summary and status
+
+- Reviewed the MongoDB Atlas connection-method screen and directed selection of
+  the application Drivers option so the Node/Mongoose connection URI can be
+  copied into MultiVideo's ignored local environment file.
+- No connection URI, database credential, external setting, or implementation
+  file was changed. Only this credential-safe journal entry was added.
+- Verification was not applicable. Commit and push: pending audit-only update.
+
 ## 2026-08-15 07:14:47 IST — Validate configuration and integrate SSH/UX hardening
 
 ### Request summary
