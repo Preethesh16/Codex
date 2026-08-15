@@ -165,17 +165,26 @@ function saveContext(workspaceId: string, context: StartupContext) {
 // WORKSPACE ENDPOINTS
 // -----------------------------------------------------------------
 app.get('/api/workspace', (req, res) => {
-  const rows = db.prepare("SELECT * FROM workspaces").all();
-  res.json(rows);
+  const rows = db.prepare("SELECT * FROM workspaces").all() as Array<Record<string, unknown> & { id: string; name: string }>;
+  res.json(rows.map((row) => {
+    const context = getContext(row.id);
+    return { ...row, name: context.companyName || row.name, stage: context.business.stage };
+  }));
 });
 
 app.post('/api/workspace', (req, res) => {
-  const { id, name, ownerId } = req.body;
-  if (!id || !name) {
-    return res.status(400).json({ error: 'ID and Name required' });
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  if (!name || name.length > 80) return res.status(400).json({ error: 'Company name must be between 1 and 80 characters.' });
+  const workspaces = db.prepare("SELECT * FROM workspaces").all() as Array<{ id: string; name: string }>;
+  if (workspaces.some((workspace) => (getContext(workspace.id).companyName || workspace.name).trim().toLowerCase() === name.toLowerCase())) {
+    return res.status(409).json({ error: 'A company with this name already exists.' });
   }
-  db.prepare("INSERT INTO workspaces (id, name, owner_id) VALUES (?, ?, ?)").run(id, name, ownerId || 'founder-1');
-  res.json({ success: true, workspaceId: id });
+  const workspaceId = `workspace-${crypto.randomUUID()}`;
+  db.prepare("INSERT INTO workspaces (id, name, owner_id) VALUES (?, ?, ?)").run(workspaceId, name, 'founder-1');
+  const context = getContext(workspaceId);
+  context.companyName = name;
+  saveContext(workspaceId, context);
+  res.status(201).json({ id: workspaceId, name, status: 'active', stage: context.business.stage });
 });
 
 // -----------------------------------------------------------------
@@ -286,9 +295,13 @@ app.post('/api/launch-startupforge', async (req, res) => {
 app.post('/api/execution/trigger', async (req, res) => {
   const workspaceId = (req.body.workspaceId as string) || 'default-workspace';
   const { objective, companyName } = req.body;
+  const normalizedCompanyName = typeof companyName === 'string' ? companyName.trim() : '';
 
   if (!objective) {
     return res.status(400).json({ error: 'Objective is required' });
+  }
+  if (companyName !== undefined && (!normalizedCompanyName || normalizedCompanyName.length > 80)) {
+    return res.status(400).json({ error: 'Company name must be between 1 and 80 characters.' });
   }
 
   // Clear previous runs
@@ -298,8 +311,9 @@ app.post('/api/execution/trigger', async (req, res) => {
 
   const ctx = getContext(workspaceId);
   ctx.founderProfile.vision = objective;
-  if (companyName) {
-    ctx.companyName = companyName;
+  if (normalizedCompanyName) {
+    ctx.companyName = normalizedCompanyName;
+    db.prepare("UPDATE workspaces SET name = ? WHERE id = ?").run(normalizedCompanyName, workspaceId);
   }
   ctx.founderProfile.preferences = ctx.founderProfile.preferences || {};
   if (req.body.track) {

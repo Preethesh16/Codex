@@ -41,7 +41,8 @@ import {
   Download,
   SlidersHorizontal,
   Mic,
-  Upload
+  Upload,
+  Plus
 } from 'lucide-react';
 import { StartupContext, AgentMessage, ExecutionTask, Conflict } from 'orbit-core';
 
@@ -57,6 +58,13 @@ interface PitchSlide {
   body: string;
 }
 
+interface WorkspaceSummary {
+  id: string;
+  name: string;
+  status: string;
+  stage: string;
+}
+
 // Final agent roster — the smart build-and-scale ecosystem.
 const DEPT_SEQUENCE = [
   'Research', 'Finance', 'Marketing', 'Creative', 'Deck', 'Code', 'Conflict'
@@ -65,6 +73,11 @@ const STARTUPFORGE_CLIENT_URL = import.meta.env.VITE_STARTUPFORGE_CLIENT_URL || 
 
 export default function App() {
   const [workspaceId, setWorkspaceId] = useState('default-workspace');
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
+  const [isAddingCompany, setIsAddingCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [addCompanyError, setAddCompanyError] = useState('');
+  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [objective, setObjective] = useState('');
   const [context, setContext] = useState<StartupContext | null>(null);
   const [tasks, setTasks] = useState<ExecutionTask[]>([]);
@@ -136,17 +149,29 @@ export default function App() {
   const [isCompletingStage, setIsCompletingStage] = useState(false);
 
   // Fetch current state
+  const fetchWorkspaces = async () => {
+    try {
+      const response = await fetch('/api/workspace');
+      if (!response.ok) return;
+      const data = await response.json() as WorkspaceSummary[];
+      setWorkspaces(data);
+    } catch (err) {
+      console.error('Error fetching company workspaces', err);
+    }
+  };
+
   const fetchData = async () => {
     try {
       const contextRes = await fetch(`/api/context?workspaceId=${workspaceId}`);
       if (contextRes.ok) {
         const ctxData = await contextRes.json();
         setContext(ctxData);
-        
-        // Auto-detect if workspace has an active idea launched
-        if (ctxData.founderProfile.vision && ctxData.founderProfile.vision !== 'A simple SaaS platform') {
-          setHasIdeaLaunched(true);
-        }
+        setWorkspaces((current) => current.map((workspace) => workspace.id === workspaceId
+          ? { ...workspace, name: ctxData.companyName, stage: ctxData.business.stage }
+          : workspace));
+        const launched = Boolean(ctxData.founderProfile.vision && ctxData.founderProfile.vision !== 'A simple SaaS platform');
+        setHasIdeaLaunched(launched);
+        if (!launched) setInputCompanyName(ctxData.companyName === 'Acme Workspace' ? '' : ctxData.companyName);
       }
 
       const tasksRes = await fetch(`/api/tasks?workspaceId=${workspaceId}`);
@@ -178,10 +203,51 @@ export default function App() {
   };
 
   useEffect(() => {
+    fetchWorkspaces();
+  }, []);
+
+  useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 1500);
     return () => clearInterval(interval);
   }, [workspaceId]);
+
+  const handleWorkspaceChange = (nextWorkspaceId: string) => {
+    const selected = workspaces.find((workspace) => workspace.id === nextWorkspaceId);
+    setWorkspaceId(nextWorkspaceId);
+    setActiveView('overview');
+    setAddCompanyError('');
+    if (selected) setInputCompanyName(selected.name);
+  };
+
+  const handleAddCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newCompanyName.trim();
+    if (!name) return;
+    setIsCreatingCompany(true);
+    setAddCompanyError('');
+    try {
+      const response = await fetch('/api/workspace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not add the company.');
+      setWorkspaces((current) => [...current, data]);
+      setNewCompanyName('');
+      setIsAddingCompany(false);
+      setInputCompanyName(data.name);
+      setObjective('');
+      setWorkspaceId(data.id);
+      setActiveView('overview');
+      setHasIdeaLaunched(false);
+    } catch (err) {
+      setAddCompanyError(err instanceof Error ? err.message : 'Could not add the company.');
+    } finally {
+      setIsCreatingCompany(false);
+    }
+  };
 
   // Prepopulate agent chat welcome messages
   useEffect(() => {
@@ -791,6 +857,20 @@ export default function App() {
           </p>
 
           <div className="glass-panel rounded-2xl p-6 shadow-2xl bg-white/70">
+            {workspaces.length > 1 && (
+              <div className="mb-4 text-left">
+                <label className="block text-xs text-stone-600 font-mono mb-2 uppercase tracking-wider">Company workspace</label>
+                <select
+                  value={workspaceId}
+                  onChange={(e) => handleWorkspaceChange(e.target.value)}
+                  className="w-full px-4 py-2 text-sm text-stone-850 rounded-xl bg-[#fff1ec] border border-stone-200 focus:outline-none focus:border-[#a53600]"
+                >
+                  {workspaces.map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>{workspace.name} — {workspace.stage}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <form onSubmit={handleLaunch} className="flex flex-col gap-4">
               <div>
                 <label className="block text-left text-xs text-stone-600 font-mono mb-2 uppercase tracking-wider">Startup Name</label>
@@ -860,12 +940,55 @@ export default function App() {
           <label className="block text-[9px] text-stone-500 uppercase tracking-widest mb-1.5 font-mono">Workspace</label>
           <select 
             value={workspaceId} 
-            onChange={(e) => setWorkspaceId(e.target.value)}
+            onChange={(e) => handleWorkspaceChange(e.target.value)}
             className="w-full px-2.5 py-1.5 text-xs text-stone-800 rounded-lg bg-white border border-stone-200 focus:outline-none focus:border-[#a53600]"
           >
-            <option value="default-workspace">Acme Analytics (Active)</option>
-            <option value="workspace-2">Delta Delivery (Stage: GTM)</option>
+            {workspaces.length > 0 ? workspaces.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.name}{workspace.id === workspaceId ? ' (Active)' : ` (Stage: ${workspace.stage})`}
+              </option>
+            )) : <option value={workspaceId}>{context?.companyName || 'Loading workspace…'}</option>}
           </select>
+          {!isAddingCompany ? (
+            <button
+              type="button"
+              onClick={() => { setIsAddingCompany(true); setAddCompanyError(''); }}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 px-2.5 py-2 text-[11px] font-semibold text-[#a53600] rounded-lg border border-[#a53600]/25 bg-white hover:bg-[#fff1ec] transition"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add company
+            </button>
+          ) : (
+            <form onSubmit={handleAddCompany} className="mt-2 flex flex-col gap-2">
+              <input
+                autoFocus
+                type="text"
+                value={newCompanyName}
+                onChange={(e) => setNewCompanyName(e.target.value)}
+                placeholder="Company name"
+                maxLength={80}
+                className="w-full px-2.5 py-2 text-xs text-stone-800 rounded-lg bg-white border border-stone-200 focus:outline-none focus:border-[#a53600]"
+                required
+              />
+              {addCompanyError && <p className="text-[10px] text-red-700">{addCompanyError}</p>}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsAddingCompany(false); setNewCompanyName(''); setAddCompanyError(''); }}
+                  className="px-2 py-1.5 text-[10px] text-stone-600 rounded-lg border border-stone-200 bg-white hover:bg-stone-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingCompany || !newCompanyName.trim()}
+                  className="px-2 py-1.5 text-[10px] font-semibold text-white rounded-lg bg-[#a53600] hover:bg-[#812800] disabled:opacity-50"
+                >
+                  {isCreatingCompany ? 'Adding…' : 'Create'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Navigation Items */}

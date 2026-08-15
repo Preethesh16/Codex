@@ -3,6 +3,45 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 08:30:01 IST — Dynamic workspaces and add-company control
+
+### Request summary and initial decisions
+
+- Replace the hardcoded demo workspace labels with saved company names and add
+  a visible control for creating another isolated company workspace.
+- The new company will receive a server-generated workspace ID and initialized
+  context, the client will refresh its workspace list, and Orbit will switch to
+  the new company immediately. Company input will be trimmed and validated;
+  arbitrary client-provided workspace IDs will not be accepted.
+
+### Changes and verification
+
+- Replaced both hardcoded demo selector options with workspace summaries loaded
+  from the server. The API now reports each saved context's real company name
+  and current stage, so the existing default workspace displays `CAZ`.
+- Added an inline `Add company` form with create/cancel states, duplicate and
+  validation feedback, an 80-character limit, and automatic switching to the
+  newly initialized workspace. The onboarding screen also exposes the workspace
+  selector when multiple companies exist, so the founder can return to an
+  existing company without completing the new company's onboarding first.
+- The server now generates opaque workspace IDs, rejects blank/oversized and
+  case-insensitive duplicate company names, creates a complete isolated context,
+  and keeps the workspace record's label synchronized when onboarding changes a
+  company name.
+- Files changed: `Orbit-main/packages/client/src/App.tsx`,
+  `Orbit-main/packages/server/src/index.ts`,
+  `Orbit-main/packages/server/src/db.ts`, and this journal.
+- Orbit's complete production build passed and all 15 server tests passed. An
+  isolated temporary-database API smoke passed list, blank-name rejection (400),
+  create (201), server-generated ID, initialized context, duplicate rejection
+  (409), and refreshed listing. The temporary server was stopped afterward and
+  the user's CAZ data was not modified.
+- The live development frontend serves the new control and API integration, the
+  restarted Orbit API reports `CAZ` with stage `GTM`, and both ports 3000 and
+  5000 return HTTP 200. Diff whitespace and credential-pattern checks passed.
+  The verified milestone is committed and pushed in the commit containing this
+  entry to `codex/orbit-openai-migration`; `main` is unchanged.
+
 ## 2026-08-15 08:29:28 IST — Diagnose onboarding/workspace name mismatch
 
 - Investigated why Orbit's workspace selector still displayed demo company

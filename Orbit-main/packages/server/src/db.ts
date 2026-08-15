@@ -125,7 +125,16 @@ class MockDatabase {
           self.save();
           return { changes: 1 };
         }
-        // 2. Insert secure vault key
+        // 2. Keep the workspace label in sync with its saved company context
+        if (normalized.includes('UPDATE workspaces SET name = ? WHERE id = ?')) {
+          const [name, id] = args;
+          const workspace = self.state.workspaces.find(item => item.id === id);
+          if (!workspace) return { changes: 0 };
+          workspace.name = name;
+          self.save();
+          return { changes: 1 };
+        }
+        // 3. Insert secure vault key
         if (normalized.includes('INSERT INTO local_secure_vault (id, key_type, encrypted_payload) VALUES (?, ?, ?)')) {
           const [id, keyType, encryptedPayload] = args;
           self.state.local_secure_vault.push({
@@ -137,7 +146,7 @@ class MockDatabase {
           self.save();
           return { changes: 1 };
         }
-        // 3. Insert workspace with owner (full fields)
+        // 4. Insert workspace with owner (full fields)
         if (normalized.includes('INSERT INTO workspaces (id, name, owner_id, status) VALUES (?, ?, ?, ?)')) {
           const [id, name, ownerId, status] = args;
           self.state.workspaces.push({
@@ -150,21 +159,21 @@ class MockDatabase {
           self.save();
           return { changes: 1 };
         }
-        // 4. Insert founder profile preferences
+        // 5. Insert founder profile preferences
         if (normalized.includes('INSERT INTO local_founder_profile (key, val) VALUES (?, ?)')) {
           const [key, val] = args;
           self.state.local_founder_profile[key] = val;
           self.save();
           return { changes: 1 };
         }
-        // 5. Insert context snapshot
+        // 6. Insert context snapshot
         if (normalized.includes('INSERT INTO context_snapshots (workspace_id, context_data) VALUES (?, ?)')) {
           const [workspaceId, contextData] = args;
           self.state.context_snapshots[workspaceId] = contextData;
           self.save();
           return { changes: 1 };
         }
-        // 6. Update context snapshot
+        // 7. Update context snapshot
         if (normalized.includes('UPDATE context_snapshots SET context_data = ?, updated_at = CURRENT_TIMESTAMP WHERE workspace_id = ?')) {
           const [contextData, workspaceId] = args;
           self.state.context_snapshots[workspaceId] = contextData;
