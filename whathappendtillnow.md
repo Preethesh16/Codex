@@ -2327,3 +2327,36 @@ changing `main` or causing external publishing without approval.
   repository. They were not recreated, substituted, or sourced externally.
 - No implementation or README change was made in this batch. Commit and push
   status: audit-only update pending.
+
+### Prompt — use the redesign photos supplied inline in chat
+
+- The owner confirmed that the requested redesign photos are the images shown
+  directly in this conversation.
+- The images are visible for review but are not exposed to the repository as
+  original local files. Because work is restricted to the project directory,
+  they cannot be copied into `docs/assets/` until the original files are placed
+  there or attached with accessible file paths.
+- No substitute image, recreation, external search, implementation change, or
+  README claim was made. Commit and push status: pending audit-only update.
+
+### Prompt — credit Codex as a contributor
+
+- The owner requested that OpenAI Codex be listed as a project contributor.
+- The README credit will identify Codex accurately as an AI engineering
+  copilot and summarize its migration, implementation, debugging, testing, and
+  documentation contributions without assigning it a fictional personal
+  identity or GitHub account.
+
+#### Planned verification and status
+
+- Update the root evaluator README, validate Markdown formatting, then commit
+  and publish the documentation milestone.
+
+#### Change batch — contributor credit
+
+- Added a Contributors section crediting the Orbit team as product owners and
+  OpenAI Codex as an AI engineering copilot.
+- The wording explicitly avoids representing Codex as a human contributor or
+  fictional GitHub account and preserves ownership with the Orbit team.
+- Files changed: `README.md`, `whathappendtillnow.md`.
+- Verification, commit, and push status: pending.
