@@ -3,6 +3,18 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:12:27 IST — Select SSH for GitHub access
+
+### Request summary and status
+
+- Confirmed GitHub repository operations will use the operator's existing SSH
+  configuration rather than StartupForge's optional browser OAuth connection.
+- StartupForge's `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` should remain
+  blank; its OAuth UI flow will therefore remain disabled.
+- No credential, environment value, source file, branch, or remote was changed.
+- Files changed: `whathappendtillnow.md` only. No tests were required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 06:11:05 IST — Confirm encryption-key placement
 
 ### Request summary and status
