@@ -2409,3 +2409,16 @@ changing `main` or causing external publishing without approval.
 - Verified the remote README contains the Codex badge, Contributors heading,
   and AI engineering contributor role. Markdown whitespace validation passed.
 - Main push status: complete. Final audit-only commit status: pending.
+
+### Prompt — prepare hackathon submission-form content
+
+- The owner requested paste-ready evaluator copy for the submission fields
+  describing Orbit's idea, value, and use of Codex.
+- The response will be grounded in the repository README and implemented
+  architecture, including the OpenAI multi-agent workflow, StartupForge,
+  generated images and Sora video, voice/TTS, privacy controls, approvals, and
+  observable execution. It will avoid unsupported claims or invented results.
+- Reviewed the root, Orbit, and StartupForge README descriptions to align the
+  submission copy with implemented behavior and supplied demo evidence.
+- No implementation file, external service, or submission form was modified.
+  Audit-only update commit and push status: pending.
