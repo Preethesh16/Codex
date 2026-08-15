@@ -2483,4 +2483,10 @@ changing `main` or causing external publishing without approval.
   contact sheets were deleted after validation. Only the final MP4 and preview
   remain. The temporary Orbit client, StartupForge server/client, and asset
   server were stopped; the pre-existing Orbit API process was left untouched.
-- Commit and push status: pending.
+- Migration milestone: `84bf929` (`docs: add full Orbit workflow demo`), pushed
+  to `codex/orbit-openai-migration`.
+- Documentation/media-only main milestone: `bfbe88b` (`docs: add full Orbit
+  workflow demo`), pushed to `codex/main` under the owner's explicit
+  authorization. The remote main tree and README links were fetched and
+  verified after the push. No unrelated branch or application change was
+  merged into main.
