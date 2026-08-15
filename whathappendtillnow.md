@@ -2359,4 +2359,10 @@ changing `main` or causing external publishing without approval.
 - The wording explicitly avoids representing Codex as a human contributor or
   fictional GitHub account and preserves ownership with the Orbit team.
 - Files changed: `README.md`, `whathappendtillnow.md`.
-- Verification, commit, and push status: pending.
+- Markdown whitespace validation with `git diff --check`: passed.
+- Contributor heading and wording checks with `rg`: passed.
+- Migration commit: `220b45e` (`docs: credit Codex collaboration`), pushed
+  to `codex/orbit-openai-migration`.
+- Documentation-only main commit: `a57dd3b` (`docs: credit Codex
+  collaboration`), pushed to `codex/main` under the owner's prior explicit main
+  authorization. No unrelated branch was pulled or merged.
