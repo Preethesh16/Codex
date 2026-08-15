@@ -2545,4 +2545,13 @@ changing `main` or causing external publishing without approval.
 - Files changed: `README.md`,
   `docs/assets/orbit-full-workflow-demo.mp4`, and this audit log.
 - Temporary narration and mixing files are removed after the final asset is
-  installed. Commit and push status: pending.
+  installed.
+- Default-branch milestone: `af56316` (`docs: add voiceover to Orbit workflow
+  demo`), pushed to `codex/orbit-openai-migration`.
+- Documentation/media-only main milestone: `76988ba` (`docs: add voiceover to
+  Orbit workflow demo`), pushed to `codex/main` under the owner's explicit
+  authorization. The remote default branch remains `orbit-openai-migration`.
+- Remote verification passed: the narrated MP4 has the same Git object hash on
+  the local branch, `codex/orbit-openai-migration`, and `codex/main`. This final
+  audit update is committed and pushed to `codex/orbit-openai-migration`
+  immediately after the entry.
