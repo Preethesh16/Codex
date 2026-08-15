@@ -3,6 +3,20 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:05:57 IST — Add Google OAuth test user
+
+### Request summary and status
+
+- The owner reported deleting the exposed OAuth client, creating a replacement,
+  and saving the replacement credentials locally.
+- Selected the next Google Auth Platform step: keep the external app in testing
+  status and add the Google account that owns/can upload to the demo YouTube
+  channel as an explicit test user.
+- No email, credential, Google setting, source/configuration value, or external
+  request was handled by Codex.
+- Files changed: `whathappendtillnow.md` only. No tests were required.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 07:02:37 IST — Revoke exposed Google OAuth client secret
 
 ### Request summary and security status
