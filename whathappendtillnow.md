@@ -2622,3 +2622,28 @@ changing `main` or causing external publishing without approval.
   recovered source, and mix files are removed after installation.
 - This verified repair is committed and pushed to the default branch, then
   merged into `main` without force-pushing immediately after this entry.
+### Prompt — remove echo and credit Codex inside the demo
+
+- The owner confirmed that the replacement voice is otherwise suitable but
+  reported an echo and requested an explicit spoken credit inside the video.
+- Rebuild from the clean pre-narration video with no source/Sora soundtrack at
+  all, generate one dry studio narration stating that the demonstration was
+  recorded, scripted, and narrated by OpenAI Codex, validate the complete MP4,
+  and publish the correction to the default branch and `main` without exposing
+  credentials.
+- Generated one replacement `gpt-4o-mini-tts` WAV using the `marin` voice and
+  explicit instructions for a dry, close-microphone delivery with zero echo,
+  reverb, room ambience, or effects. The first spoken sentence states: “This
+  demo was recorded, scripted, and voiced by OpenAI Codex itself, using OpenAI
+  text to speech.” Credentials were neither printed nor committed.
+- Removed the original Sora/source soundtrack completely. The final MP4 uses a
+  single true-mono narration channel with no stereo duplication, time stretch,
+  background mix, reverb, or whole-track boost.
+- Full validation passed: 64.2 seconds, 1280×720 H.264 video, 48 kHz mono AAC,
+  -16.7 dB mean and -1.9 dB maximum, with only the final 1.2 seconds silent.
+  Complete decode and credential-pattern checks passed.
+- Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`, and this audit log. Temporary
+  generation and mix files are removed after installation.
+- This verified repair is committed and pushed to the default branch, then
+  merged into `main` without force-pushing immediately after this entry.
