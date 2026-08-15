@@ -2304,3 +2304,26 @@ changing `main` or causing external publishing without approval.
 - Documentation commit: `3abc356` (`docs: present Orbit multi-agent demo`),
   pushed to `codex/orbit-openai-migration`. The status-only audit update will be
   committed separately without rewriting that milestone.
+
+### Prompt — add team-owned UI redesign evidence
+
+- The owner clarified that the two supplied office-style screenshots are
+  team-owned previews of Orbit's upcoming interface and requested that they be
+  presented as future UI work alongside the existing product screenshots and
+  Sora advertisement.
+- The owner then explicitly restricted all work and inspection to this project
+  directory. No external folders, unrelated branches, or external assets will
+  be inspected or imported.
+
+#### Planned verification and status
+
+- Check only `docs/assets/` for the supplied redesign images. If they are not
+  present, prepare a safe in-project destination and document the single manual
+  step required to make the exact image files available.
+- Project-local inspection confirmed that the current Orbit and StartupForge
+  screenshots, CAZ poster, Sora preview, and complete Sora MP4 are present and
+  already linked from the evaluator README.
+- The two exact redesign screenshots are not present as files inside the
+  repository. They were not recreated, substituted, or sourced externally.
+- No implementation or README change was made in this batch. Commit and push
+  status: audit-only update pending.
