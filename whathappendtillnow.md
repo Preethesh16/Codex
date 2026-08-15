@@ -69,7 +69,10 @@ from the collaborator checkpoint.
   staging attempt also showed that the compiled-declaration ignore pattern
   caught Vite's conventional source declaration `vite-env.d.ts`; a narrow
   tracked-file exception was added before committing.
-- Commit and push: pending final diff review.
+- Commit and push: implementation commit `72700cf` was pushed successfully over
+  SSH to `codex/orbit-openai-migration`. This journal closeout is recorded in
+  the immediately following audit-only commit; `main` and the collaborator
+  branch were not modified.
 
 ## 2026-08-15 07:12:42 IST — Confirm final OAuth scope set
 
