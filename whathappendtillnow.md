@@ -3,6 +3,21 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 07:39:36 IST — Locate the Atlas IP access list
+
+### Request summary and status
+
+- Reviewed the Atlas Database & Network Access screenshot. The owner is on the
+  Database Users subsection and needs navigation to the IP/network access list
+  before adding the current development IP.
+- No personal/database-user value from the screenshot is recorded. No external
+  setting or implementation file was changed; only navigation guidance is being
+  provided. Verification was not applicable.
+- Current Atlas documentation confirms that Security Quickstart → My Local
+  Environment exposes the project IP access-list control and its Add My Current
+  IP Address action. This is the clearest route from the displayed page.
+- Commit and push: recorded in the audit-only commit following this entry.
+
 ## 2026-08-15 07:36:35 IST — Retry MongoDB after credential substitution
 
 ### Request summary and initial status
