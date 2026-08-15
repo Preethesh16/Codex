@@ -2517,3 +2517,32 @@ changing `main` or causing external publishing without approval.
   publishing, and Docker delivery.
 - No implementation file or external service was changed. Audit-only commit
   and push status: pending.
+
+### Prompt — add OpenAI voiceover to the workflow demo
+
+- The owner authorized generating a narration track for the existing 64-second
+  workflow demo and publishing the updated video.
+- Official OpenAI documentation was checked before the API call; it confirms
+  that `tts-1` is the speed-optimized text-to-speech model available through
+  the Audio Speech endpoint.
+- Generate one concise narration with `tts-1`, mix it with the Sora segment's
+  original audio at a lower level, validate timing and decoding, update the
+  demo asset, and publish the media-only revision to the default branch and
+  `main`. Credentials will remain in the ignored server environment file and
+  will not be printed or committed.
+- Status: in progress.
+
+#### Change batch — narrated evaluator demo
+
+- Generated one narration track with OpenAI `tts-1` using the `onyx` voice;
+  no API key or credential was printed, logged, or added to Git.
+- Mixed the narration with the existing Sora advertisement audio at a reduced
+  background level, then normalized the combined soundtrack for clear speech.
+- Replaced `docs/assets/orbit-full-workflow-demo.mp4` with the narrated version
+  and updated `README.md` so evaluators know the demo includes OpenAI TTS.
+- Final media validation passed: 64.2 seconds, 1280×720 H.264 video, 48 kHz
+  stereo AAC audio, 3,120,069 bytes. A complete `ffmpeg` decode also passed.
+- Files changed: `README.md`,
+  `docs/assets/orbit-full-workflow-demo.mp4`, and this audit log.
+- Temporary narration and mixing files are removed after the final asset is
+  installed. Commit and push status: pending.
