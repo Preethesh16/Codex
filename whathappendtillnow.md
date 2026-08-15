@@ -98,7 +98,9 @@ copied verbatim. Secrets and private document contents must never be recorded.
   URIs and complete interactive browser consent.
 - Final diff whitespace and credential-pattern checks passed. The complete
   build/test matrix was rerun after the last source edit with the same passing
-  results. Commit and push: pending creation of the verified milestone commit.
+  results. Verified milestone commit `e0046c8` was pushed over SSH to
+  `codex/orbit-openai-migration`; `main` was not changed. This audit closeout is
+  recorded in the immediately following audit-only commit.
 
 ## 2026-08-15 07:42:24 IST — Validate MongoDB after IP allowlisting
 
