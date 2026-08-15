@@ -3,6 +3,26 @@
 This is a credential-safe implementation journal. Prompt text is summarized, not
 copied verbatim. Secrets and private document contents must never be recorded.
 
+## 2026-08-15 06:03:30 IST — Clarify local service and approval secrets
+
+### Request summary
+
+Explain what values belong in Orbit's StartupForge service-token and approval-
+token environment fields.
+
+### Decision and status
+
+- Clarified that both values are independently generated local random secrets,
+  not credentials obtained from OpenAI or another provider.
+- The StartupForge service token must be copied exactly into both Orbit and
+  StartupForge so their server-to-server requests authenticate successfully.
+- The Orbit approval token must be a different random value and remains only in
+  Orbit's local environment/operator approval flow.
+- No secret value was generated, read, logged, or changed.
+- Files changed: `whathappendtillnow.md` only. Tests were not required because
+  application configuration and source were unchanged.
+- Commit and push: pending audit-only commit.
+
 ## 2026-08-15 05:55:14 IST — Create local credential placeholder files
 
 ### Request summary
